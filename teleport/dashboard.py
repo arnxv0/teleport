@@ -75,6 +75,38 @@ class App:
         self._attach(self.backend)
         threading.Thread(target=self._refresh_loop, daemon=True).start()
 
+    def _supervise(self, st):
+        """Keep the swarm at its target size. Never kills anything: when machines die on their own
+        (sandbox lifetime, crash, or a demo kill) it launches replacements into pool R, and their
+        abandoned tasks teleport to whoever claims them."""
+        run = self.run
+        if (self.mode != "archil" or not run or run.get("phase") != "running"
+                or os.environ.get("TELEPORT_SUPERVISE", "1") != "1"):
+            return
+        now = time.time()
+        run.setdefault("launched_at", now)  # runs restored after a server restart
+        if now - run["launched_at"] < 75 or now - getattr(self, "_last_heal", 0) < 45:
+            return  # let new sandboxes boot and heartbeat before judging
+        if st.get("total") and st.get("done", 0) >= st["total"]:
+            return
+        alive = sum(1 for w in st.get("workers", []) if w.get("alive") and not str(w.get("worker", "")).startswith("reaper"))
+        deficit = int(run.get("workers") or 0) - alive
+        if deficit <= 0:
+            return
+        self._last_heal = now
+        n = min(deficit, 10)
+        def heal():
+            try:
+                self.backend.launch(n, "R")
+                run["replaced"] = run.get("replaced", 0) + n
+                run["message"] = (f"{run['workers']} agents cleaning {st.get('total')} records · "
+                                  f"supervisor replaced {run['replaced']} machines that died")
+                self._save_run()
+                print(f"[supervisor] {alive} alive of {run['workers']}: launched {n} replacements", flush=True)
+            except Exception as e:
+                print("[supervisor] launch failed", e, flush=True)
+        threading.Thread(target=heal, daemon=True).start()
+
     def _restore(self):
         """Re-attach to the last run after a server restart."""
         try:
@@ -101,6 +133,7 @@ class App:
         while True:
             try:
                 self._snap = self.view.state()
+                self._supervise(self._snap)
                 if n % 2 == 0:
                     self._tele = self.view.teleports()
             except Exception as e:
@@ -131,9 +164,9 @@ class App:
     def state(self):
         st = {**(self._snap or self.view.state()), "mode": self.mode, "run": self.run}
         if self.run and self.run["phase"] == "running" and st["total"] and st["done"] >= st["total"]:
-            self.run.update(phase="complete", message=f"{st['done']} records verified; releasing sandboxes")
+            self.run.update(phase="complete", message=f"{st['done']} records verified")
             self._save_run()
-            if self.mode == "archil":
+            if self.mode == "archil" and os.environ.get("TELEPORT_AUTO_RELEASE") == "1":
                 threading.Thread(target=self._release, daemon=True).start()
         return st
 
@@ -201,6 +234,7 @@ class App:
                 b.launch((workers + 1) // 2, "laptop-A")
                 b.launch(workers // 2, "laptop-B")
             b.reaper()
+            self.run["launched_at"] = time.time()
             self._phase("running", f"{workers} agents cleaning {man['count']} records")
         except Exception as e:
             self._phase("failed", f"{type(e).__name__}: {e}"[:300])
@@ -288,6 +322,16 @@ def make_handler(app):
             if self.path.startswith("/api/join-info"):
                 return self._send(200, {"code": JOIN_CODE, "path": f"/join.sh?code={JOIN_CODE}",
                                         "available": app.mode == "archil"})
+            if self.path.startswith("/api/inspect"):
+                from urllib.parse import parse_qs, urlparse
+                from . import sources
+                url = parse_qs(urlparse(self.path).query).get("url", [""])[0].strip()
+                if not url.startswith(("https://", "http://", "s3://")):
+                    return self._send(400, {"error": "URL must start with https://, http:// or s3://"})
+                try:
+                    return self._send(200, sources.inspect(url))
+                except Exception as e:
+                    return self._send(400, {"error": f"couldn't read that dataset: {type(e).__name__}: {e}"[:300]})
             if self.path.startswith("/api/rows"):
                 from urllib.parse import parse_qs, urlparse
                 qs = parse_qs(urlparse(self.path).query)
@@ -304,7 +348,7 @@ def make_handler(app):
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
             try:
                 if self.path == "/api/start":
-                    rid = app.start(str(body.get("url", "")).strip(), min(int(body.get("limit") or 200), 2000),
+                    rid = app.start(str(body.get("url", "")).strip(), min(int(body.get("limit") or 200), 10000),
                                     max(1, min(int(body.get("workers") or 8), 64)))
                     return self._send(200, {"ok": True, "run_id": rid})
                 if self.path == "/api/accept":
@@ -317,7 +361,7 @@ def make_handler(app):
                     return self._send(200, {"killed": app.kill(body.get("machine"), float(body.get("fraction", 0.5)))})
                 if self.path == "/api/launch":
                     return self._send(200, {"launched": app.launch(body.get("machine") or "laptop-B",
-                                                                   int(body.get("n", 3)))})
+                                                                   max(1, min(20, int(body.get("n", 3)))))})
             except (ValueError, RuntimeError) as e:
                 return self._send(400, {"error": str(e)})
             except Exception as e:
