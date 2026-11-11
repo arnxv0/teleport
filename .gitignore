@@ -1,0 +1,10 @@
+.venv/
+disk/
+__pycache__/
+*.pyc
+Session.vim
+.env
+.teleport.json
+.teleport*.json
+runs/
+.teleport-current-*.json

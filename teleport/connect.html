@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teleport · Connect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04070D;--surface:#0A0F1A;--surface-2:#0E1522;--border:#172133;--border-strong:#22304A;
+  --text:#E8EEF7;--muted:#8A97AD;--faint:#4E5B72;
+  --accent:#5B8DEF;--success:#E8EEF7;--warning:#8A97AD;--danger:#B8C4D6;
+  --accent-t:rgba(91,141,239,.12);--success-t:rgba(232,238,247,.12);--warning-t:rgba(138,151,173,.12);--faint-t:rgba(78,91,114,.16);
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{background:radial-gradient(1200px 600px at 50% -10%,#0B1426 0%,rgba(4,7,13,0) 70%),var(--bg);background-attachment:fixed}
+body{font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+.mono{font-family:var(--mono)}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* top bar (identical to Overview) */
+.top{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 24px;position:sticky;top:0;z-index:10;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:10px;white-space:nowrap;min-width:0;flex:none}
+.brand .name{font-weight:600;font-size:16px;letter-spacing:-.01em}
+.brand .sub{color:var(--muted);font-size:13px;padding-left:10px;border-left:1px solid var(--border)}
+@media(max-width:1379px){.brand .sub{display:none}}
+.nav{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.nav a{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:7px;color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;white-space:nowrap;border:1px solid transparent;transition:color .12s,background .12s}
+.nav a svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.nav a:hover{color:var(--text)}
+.nav a.on{background:var(--surface-2);color:var(--text);border-color:var(--border-strong)}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap;flex:none}
+@media(max-width:1279px){.top .clock{display:none}}
+@media(max-width:600px){.nav{display:none}.chipmode{display:none}}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid var(--border);color:var(--muted);background:var(--surface-2);white-space:nowrap}
+.pill.run{color:var(--success);border-color:rgba(232,238,247,.3);background:var(--success-t)}
+.pill.done{color:var(--accent);border-color:rgba(91,141,239,.3);background:var(--accent-t)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.clock{color:var(--faint);font-size:12px;font-family:var(--mono);min-width:110px;text-align:right}
+
+/* page */
+main{max-width:1120px;margin:0 auto;padding:64px 32px 72px;display:grid;gap:72px}
+@media(max-width:700px){main{padding:36px 16px 56px;gap:48px}}
+.badge{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;border:1px solid rgba(91,141,239,.45);color:var(--accent);font-size:12px;font-weight:500;letter-spacing:.02em}
+.badge .dot{width:6px;height:6px}
+.hero h1{margin:18px 0 0;font-size:44px;line-height:1.08;font-weight:600;letter-spacing:-.03em}
+.hero p{margin:16px 0 0;font-size:17px;line-height:1.6;color:var(--muted);max-width:720px}
+@media(max-width:700px){.hero h1{font-size:34px}.hero p{font-size:15px}}
+
+.k{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:0 0 18px}
+h2.h{margin:0 0 28px;font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+
+/* diagram */
+.diag{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 28px 20px}
+.diag svg{display:block;width:100%;height:auto}
+.diag text{font-family:var(--sans)}
+.diag .m{font-family:var(--mono)}
+.legend{display:flex;flex-wrap:wrap;gap:22px;margin-top:14px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--faint)}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{display:inline-block;width:22px;height:0;border-top:1.5px solid var(--border-strong)}
+.legend i.d{border-top-style:dashed;border-color:var(--muted)}
+.legend i.a{border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.diag .mv{display:none}}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface)}
+.step{padding:28px 28px 30px;min-width:0}
+.step+.step{border-left:1px solid var(--border)}
+.step .n{font-family:var(--mono);font-size:12px;color:var(--accent);display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;border:1px solid rgba(91,141,239,.45)}
+.step h3{margin:18px 0 8px;font-size:18px;font-weight:600;letter-spacing:-.01em}
+.step p{margin:0;color:var(--muted);font-size:14px;line-height:1.65}
+code{font-family:var(--mono);font-size:12.5px;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;white-space:nowrap}
+@media(max-width:900px){.steps{grid-template-columns:minmax(0,1fr)}.step+.step{border-left:0;border-top:1px solid var(--border)}}
+
+/* code card */
+.cc{border:1px solid var(--border);border-radius:14px;background:var(--surface);overflow:hidden;margin-top:16px}
+.cc-h{display:flex;align-items:center;gap:12px;padding:12px 16px 12px 20px;border-bottom:1px solid var(--border)}
+.cc-h .t{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.cc-h .pv{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:999px;border:1px dashed var(--border-strong);color:var(--muted);font-size:11px;font-weight:500;white-space:nowrap}
+.cc-h button{margin-left:auto;font:500 12px/1 var(--sans);height:30px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--faint);display:inline-flex;align-items:center;gap:6px;cursor:not-allowed}
+.cc pre{margin:0;padding:22px 20px;overflow-x:auto;font:13.5px/1.7 var(--mono);color:var(--text);opacity:.85}
+.cc pre .p{color:var(--faint);user-select:none}
+.cc pre .ph{color:var(--accent)}
+.cc pre .s{color:var(--muted)}
+.cc-f{padding:12px 20px;border-top:1px solid var(--border);font-size:12px;color:var(--faint)}
+
+/* why */
+.why{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.wc{border:1px solid var(--border);border-radius:14px;padding:26px 26px 28px;background:var(--surface);min-width:0}
+.wc .ic{width:36px;height:36px;border-radius:9px;border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;color:var(--text)}
+.wc .ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.wc h3{margin:18px 0 8px;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.wc p{margin:0;font-size:14px;line-height:1.65;color:var(--muted)}
+@media(max-width:900px){.why{grid-template-columns:minmax(0,1fr)}}
+
+.foot{border-top:1px solid var(--border);padding-top:20px;font-size:13px;color:var(--faint);display:flex;align-items:center;gap:10px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="12" height="12" rx="3.5" stroke="#5B8DEF" stroke-width="1.8" opacity=".55"/>
+      <rect x="9" y="9" width="12" height="12" rx="3.5" stroke="#5B8DEF" stroke-width="1.8" fill="rgba(91,141,239,.18)"/>
+    </svg>
+    <span class="name">Teleport</span>
+    <span class="sub">Agent swarm · verified public-data cleaning</span>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <a href="/"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Overview</a>
+    <a href="/3d"><svg viewBox="0 0 24 24"><path d="M12 2.8 20 7.4v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/></svg>Swarm 3D</a>
+    <a href="/teleports"><svg viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><path d="M8.5 19H17a3.5 3.5 0 0 0 0-7H7a3.5 3.5 0 0 1 0-7h8.5"/><circle cx="18" cy="5" r="2.5"/></svg>Teleports</a>
+    <a href="/connect" class="on" aria-current="page"><svg viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/></svg>Connect</a>
+  </nav>
+  <div class="right">
+    <span class="pill" id="hdrPill"><span class="dot"></span>Connecting</span>
+    <span class="pill chipmode" id="hdrMode">—</span>
+    <span class="clock" id="hdrClock"></span>
+    <!-- legacy per-page header targets, kept hidden so page scripts keep working; header.js owns the visible ones -->
+    <span hidden><span id="runPill"></span><span id="modeChip"></span><span id="clock"></span></span>
+  </div>
+  <script src="/header.js"></script>
+</header>
+
+<main>
+  <section class="hero">
+    <span class="badge"><span class="dot"></span>Preview</span>
+    <h1>Bring your own machine</h1>
+    <p>Any computer that can mount the run's Archil disk can join the swarm: it claims tasks, takes over work from machines that die, and leaves the moment you close the lid — without losing or duplicating anything.</p>
+  </section>
+
+  <section>
+    <div class="diag">
+      <svg viewBox="0 0 1000 392" role="img" aria-label="Archil sandboxes and your own machines all mount one shared Archil disk; a task teleports from a sandbox to your laptop.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M1 1 9 5 1 9" fill="none" stroke="#5B8DEF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <linearGradient id="dg" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#0E1522"/><stop offset="1" stop-color="#0A0F1A"/>
+          </linearGradient>
+        </defs>
+
+        <!-- column labels -->
+        <text x="140" y="384" text-anchor="middle" font-size="11" fill="#4E5B72" letter-spacing=".08em">ARCHIL SANDBOXES</text>
+        <text x="860" y="384" text-anchor="middle" font-size="11" fill="#4E5B72" letter-spacing=".08em">YOUR MACHINES</text>
+
+        <!-- links: sandboxes -> disk (solid) -->
+        <g fill="none" stroke="#22304A" stroke-width="1.25">
+          <path d="M220 143 C 320 143, 330 205, 410 215"/>
+          <path d="M220 233 L 410 233"/>
+          <path d="M220 323 C 320 323, 330 262, 410 252"/>
+        </g>
+        <!-- links: disk -> your machines (dashed = joining) -->
+        <g fill="none" stroke="#8A97AD" stroke-opacity=".55" stroke-width="1.25" stroke-dasharray="4 5">
+          <path d="M590 215 C 670 205, 680 143, 780 143"/>
+          <path d="M590 233 L 780 233"/>
+          <path d="M590 252 C 670 262, 680 323, 780 323"/>
+        </g>
+
+        <!-- sandboxes -->
+        <g font-size="13">
+          <rect x="60" y="115" width="160" height="56" rx="9" fill="#0E1522" stroke="#22304A"/>
+          <circle cx="80" cy="134" r="3.5" fill="#4E5B72"/>
+          <text x="92" y="138" class="m" fill="#8A97AD">sandbox-1</text>
+          <text x="80" y="158" font-size="11.5" fill="#4E5B72">died · lease expired</text>
+
+          <rect x="60" y="205" width="160" height="56" rx="9" fill="#0E1522" stroke="#22304A"/>
+          <circle cx="80" cy="224" r="3.5" fill="#E8EEF7"/>
+          <text x="92" y="228" class="m" fill="#E8EEF7">sandbox-2</text>
+          <text x="80" y="248" font-size="11.5" fill="#4E5B72">4 workers</text>
+
+          <rect x="60" y="295" width="160" height="56" rx="9" fill="#0E1522" stroke="#22304A"/>
+          <circle cx="80" cy="314" r="3.5" fill="#E8EEF7"/>
+          <text x="92" y="318" class="m" fill="#E8EEF7">sandbox-3</text>
+          <text x="80" y="338" font-size="11.5" fill="#4E5B72">4 workers</text>
+        </g>
+
+        <!-- disk: stacked cylinder -->
+        <g stroke="#5B8DEF" stroke-width="1.3">
+          <path d="M410 186 V 266 A 90 18 0 0 0 590 266 V 186" fill="url(#dg)" stroke-opacity=".7"/>
+          <path d="M410 213 A 90 18 0 0 0 590 213" fill="none" stroke-opacity=".35"/>
+          <path d="M410 240 A 90 18 0 0 0 590 240" fill="none" stroke-opacity=".35"/>
+          <ellipse cx="500" cy="186" rx="90" ry="18" fill="#101B30" stroke-opacity=".9"/>
+        </g>
+        <text x="500" y="312" text-anchor="middle" font-size="15" font-weight="600" fill="#E8EEF7">Archil disk</text>
+        <text x="500" y="332" text-anchor="middle" font-size="12" class="m" fill="#8A97AD">tasks · leases · checkpoints · code</text>
+
+        <!-- your machines (dashed = joining) -->
+        <g font-size="13" fill="none">
+          <rect x="780" y="115" width="160" height="56" rx="9" fill="#0A0F1A" stroke="#8A97AD" stroke-opacity=".7" stroke-dasharray="4 4"/>
+          <text x="800" y="138" fill="#E8EEF7" font-weight="500">your laptop</text>
+          <text x="800" y="158" font-size="11.5" class="m" fill="#5B8DEF">byo:macbook</text>
+
+          <rect x="780" y="205" width="160" height="56" rx="9" fill="#0A0F1A" stroke="#8A97AD" stroke-opacity=".5" stroke-dasharray="4 4"/>
+          <text x="800" y="228" fill="#E8EEF7" font-weight="500">on-prem server</text>
+          <text x="800" y="248" font-size="11.5" class="m" fill="#4E5B72">byo:rack-07</text>
+
+          <rect x="780" y="295" width="160" height="56" rx="9" fill="#0A0F1A" stroke="#8A97AD" stroke-opacity=".5" stroke-dasharray="4 4"/>
+          <text x="800" y="318" fill="#E8EEF7" font-weight="500">GPU box</text>
+          <text x="800" y="338" font-size="11.5" class="m" fill="#4E5B72">byo:gpu-01</text>
+        </g>
+
+        <!-- the teleport: sandbox-1 -> your laptop -->
+        <path id="tp" d="M150 113 C 260 10, 740 10, 850 113" fill="none" stroke="#5B8DEF" stroke-width="1.6" marker-end="url(#ah)"/>
+        <circle class="mv" r="4" fill="#5B8DEF">
+          <animateMotion dur="3.2s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#tp"/></animateMotion>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.85;1" dur="3.2s" repeatCount="indefinite"/>
+        </circle>
+        <rect x="408" y="22" width="184" height="26" rx="13" fill="#0A0F1A" stroke="#5B8DEF" stroke-opacity=".5"/>
+        <text x="500" y="39.5" text-anchor="middle" font-size="12" class="m" fill="#5B8DEF">task 0412 · teleport</text>
+      </svg>
+      <div class="legend">
+        <span><i></i>mounted (cloud)</span>
+        <span><i class="d"></i>joining (your hardware)</span>
+        <span><i class="a"></i>task resumes from its last checkpoint</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="k">How it would work</p>
+    <div class="steps">
+      <div class="step">
+        <span class="n">1</span>
+        <h3>Mount the disk</h3>
+        <p><code>archil mount</code> on Linux (with <code>--conditional</code>), or the Archil Mac app. The code itself lives on the disk — there is nothing else to install.</p>
+      </div>
+      <div class="step">
+        <span class="n">2</span>
+        <h3>Run workers</h3>
+        <p>One command starts N workers labelled <code>byo:&lt;hostname&gt;</code>. They show up in Fleet and Swarm 3D as just another machine.</p>
+      </div>
+      <div class="step">
+        <span class="n">3</span>
+        <h3>Leave anytime</h3>
+        <p>Close the lid and its leases expire. Unfinished tasks teleport back to the cloud and resume from their last checkpoint.</p>
+      </div>
+    </div>
+
+    <div class="cc">
+      <div class="cc-h">
+        <span class="t">join.sh</span>
+        <span class="pv">Preview — not enabled in this demo</span>
+        <button type="button" disabled title="coming soon" aria-disabled="true"><svg class="i" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 5v9A1.5 1.5 0 0 0 5 15.5h3.5"/></svg>Copy</button>
+      </div>
+      <pre><span class="p">$ </span>curl -s <span class="s">"https://</span><span class="ph">&lt;your-teleport&gt;</span><span class="s">/join.sh?code=</span><span class="ph">&lt;join-code&gt;</span><span class="s">"</span> | bash -s -- 4</pre>
+      <div class="cc-f">The trailing <span class="mono">4</span> is the number of workers to start on this machine.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="k">Why it matters</p>
+    <div class="why">
+      <div class="wc">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg></div>
+        <h3>Use idle hardware</h3>
+        <p>Laptops, on-prem servers and GPUs you already pay for pick up work alongside the cloud sandboxes.</p>
+      </div>
+      <div class="wc">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>Keep sensitive data local</h3>
+        <p>Run verification inside your own network. Only the results go to the branch.</p>
+      </div>
+      <div class="wc">
+        <div class="ic"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6"/><path d="M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg></div>
+        <h3>No new infrastructure</h3>
+        <p>No queue, no cluster. The disk is the coordination layer.</p>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Requires macOS 26+ or Linux with the Archil client. Join codes gate access to the disk token.</p>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const I={check:'<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>'};
+
+/* ---------- header (same behaviour as Overview / Teleports) ---------- */
+let S=null, lastOk=0;
+const STARTING=['planning','ingesting','launching'];
+function norm(x){x=x||{};for(const k of ['total','todo','claimed'])x[k]=+x[k]||0;x.run=x.run||null;return x}
+const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}}};
+async function pollState(){try{const r=await fetch('/api/state');const txt=await r.text();S=norm(JSON.parse(txt));ss.set('tp_state',txt);lastOk=Date.now();renderTop()}catch(e){}setTimeout(pollState,2000)}
+function renderTop(){
+  const ph=(S.run&&S.run.phase)||'idle', rp=$('runPill');
+  if(STARTING.includes(ph)){rp.className='pill run';rp.innerHTML='<span class="dot pulse"></span>Starting'}
+  else if(ph==='failed'){rp.className='pill';rp.innerHTML='<span class="dot"></span>Failed'}
+  else if(!S.total){rp.className='pill';rp.innerHTML='<span class="dot"></span>Ready'}
+  else{const running=(S.todo+S.claimed)>0;rp.className='pill '+(running?'run':'done');
+    rp.innerHTML=running?'<span class="dot pulse"></span>Running':I.check+'Complete'}
+  const tail=S.country||(S.run&&S.run.id?S.run.id:'');
+  $('modeChip').textContent=`${S.mode==='archil'?'Archil':'Local'}${tail?' · '+tail:''}`;
+}
+function tick(){
+  if(!lastOk){$('clock').textContent='';return}
+  const s=Math.round((Date.now()-lastOk)/1000);
+  $('clock').textContent=new Date().toLocaleTimeString([], {hour12:false})+' · '+(s<=2?'live':s+'s ago');
+  $('clock').style.color=s>6?'var(--warning)':'';
+}
+
+// warm start from the session cache so tab switches never flash 'Connecting'
+try{const c=ss.get('tp_state');if(c){S=norm(JSON.parse(c));renderTop()}}catch(e){}
+tick();setInterval(tick,1000);
+pollState();
+</script>
+</body>
+</html>

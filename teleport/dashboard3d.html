@@ -1,0 +1,1243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teleport · Swarm 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04070D;--surface:#0A0F1A;--surface-2:#0E1522;--border:#172133;--border-strong:#22304A;
+  --text:#E8EEF7;--muted:#8A97AD;--faint:#4E5B72;
+  --accent:#5B8DEF;--success:#E8EEF7;--warning:#8A97AD;--danger:#B8C4D6;--teleport:#5B8DEF;
+  --s-idle:#4E5B72;--s-work:#8A97AD;--s-judge:#E8EEF7;--s-commit:#5B8DEF;
+  --accent-t:rgba(91,141,239,.12);--success-t:rgba(232,238,247,.08);--warning-t:rgba(138,151,173,.1);
+  --danger-t:rgba(184,196,214,.1);--teleport-t:rgba(91,141,239,.12);--faint-t:rgba(78,91,114,.16);
+  --glass:rgba(10,15,26,.9);
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text)}
+body{font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+#c{position:fixed;inset:0;z-index:1;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 70% 65% at 50% 55%,rgba(10,18,34,.6) 0%,rgba(4,7,13,0) 70%)}
+
+/* top bar (shared with Overview) */
+.top{height:60px;background:rgba(10,15,26,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:24px;padding:0 24px;position:fixed;left:0;right:0;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.brand .name{font-weight:600;font-size:16px;letter-spacing:-.01em}
+.brand .sub{color:var(--muted);font-size:13px}
+.nav{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.nav a{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:7px;color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;white-space:nowrap;border:1px solid transparent;transition:color .15s,background .15s}
+.nav a svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nav a:hover{color:var(--text)}
+.nav a.on{color:var(--text);background:var(--surface-2);border-color:var(--border-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid var(--border);color:var(--muted);background:var(--surface-2);white-space:nowrap}
+.pill.run{color:var(--success);border-color:rgba(232,238,247,.25);background:var(--success-t)}
+.pill.done{color:var(--accent);border-color:rgba(91,141,239,.35);background:var(--accent-t)}
+.pill.off{color:var(--danger);border-color:rgba(184,196,214,.3);background:var(--danger-t)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.clock{color:var(--faint);font-size:12px;font-family:var(--mono);min-width:110px;text-align:right}
+
+/* HUD */
+.hud{position:fixed;z-index:3}
+.panel{background:var(--glass);border:1px solid var(--border);border-radius:8px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.ph{display:flex;align-items:center;gap:8px;padding:10px 12px 10px 14px;border-bottom:1px solid var(--border);min-height:44px}
+.ph h2{margin:0;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.ph h2 svg.i{color:var(--muted)}
+.ph .sp{margin-left:auto}
+.count{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:0 7px;line-height:18px}
+
+/* KPI strip */
+#kpis{left:16px;right:16px;top:72px;display:grid;grid-template-columns:minmax(0,1.9fr) repeat(7,minmax(0,1fr));overflow:hidden}
+.kpi{padding:10px 16px 11px;border-left:1px solid var(--border);min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.kpi:first-child{border-left:0}
+.kpi .l{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.kpi .v{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1.25;font-variant-numeric:tabular-nums;letter-spacing:-.02em;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.kpi .v small{font-size:13px;color:var(--faint);font-weight:400;letter-spacing:0}
+.kpi .v svg.i{width:16px;height:16px;stroke-width:2}
+.prog{display:flex;align-items:center;gap:10px;margin-top:4px}
+.bar{flex:1;height:4px;background:var(--surface-2);border-radius:999px;overflow:hidden;border:0}
+.bar i{display:block;height:100%;width:0;background:var(--success);border-radius:999px;transition:width .6s ease}
+.pct{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:32px;text-align:right}
+.c-success{color:var(--success)}.c-warning{color:var(--warning)}.c-danger{color:var(--danger)}.c-teleport{color:var(--teleport)}.c-accent{color:var(--accent)}.c-muted{color:var(--muted)}
+
+/* left: machine panel */
+#sel{left:16px;top:164px;width:320px;max-height:calc(100vh - 164px - 262px);display:flex;flex-direction:column}
+#selBody{overflow:auto;padding:14px}
+.mhead{display:flex;align-items:center;gap:8px;min-width:0}
+.mname{font-family:var(--mono);font-size:14px;font-weight:500;word-break:break-all}
+.pool{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:5px;font-family:var(--mono);font-size:11px;font-weight:500;border:1px solid;flex:none}
+.mkind{color:var(--muted);font-size:12px;margin-top:2px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin:12px 0}
+.stats div{background:var(--surface);padding:7px 10px}
+.stats .l{font-size:11px;color:var(--muted)}
+.stats .v{font-family:var(--mono);font-size:14px;font-weight:500}
+.btns{display:flex;gap:8px;margin-bottom:12px}
+.btns .btn{flex:1;justify-content:center}
+.wk{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 0;border-top:1px solid var(--border)}
+.wk .id{font-family:var(--mono);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wk .tid{font-family:var(--mono);color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:500;font-family:var(--mono);border:1px solid;white-space:nowrap}
+.chip .dot{width:6px;height:6px}
+.sub-h{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:4px 0 6px}
+.launch{padding:12px 14px;border-top:1px solid var(--border)}
+.launch .row{display:flex;gap:8px}
+.hint{color:var(--muted);font-size:12px;line-height:1.5}
+.hint b{color:var(--text);font-weight:500}
+input[type=text]{flex:1;min-width:0;height:32px;background:var(--bg);border:1px solid var(--border-strong);color:var(--text);border-radius:6px;padding:0 10px;font:13px var(--mono);outline:none}
+input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-t)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:6px;font:500 13px var(--sans);cursor:pointer;white-space:nowrap;
+  background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong);transition:background .15s,border-color .15s,color .15s}
+.btn:hover{background:#121B2C;border-color:#2E3F5E}
+.btn.danger{background:transparent;color:var(--danger);border-color:rgba(184,196,214,.4)}
+.btn.danger:hover{background:var(--danger-t);border-color:var(--danger)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted);height:28px;padding:0 8px;font-size:12px}
+.btn.ghost:hover{background:var(--surface-2);color:var(--text);border-color:var(--border)}
+.btn.icon{width:28px;padding:0;justify-content:center}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* right: teleports */
+#feed{right:16px;top:164px;width:320px;display:flex;flex-direction:column}
+#feedList{overflow:auto;padding:6px}
+.tp{padding:10px;border-radius:6px;border:1px solid transparent;transition:background .3s}
+.tp + .tp{border-top-color:var(--border);border-radius:0}
+.tp.fresh{animation:fresh 2.4s ease-out}
+@keyframes fresh{0%{background:rgba(91,141,239,.12);border-color:rgba(91,141,239,.4)}100%{background:transparent}}
+.tp .a{display:flex;align-items:center;gap:8px}
+.tp .tid{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--teleport)}
+.tp .when{margin-left:auto;font-size:11px;color:var(--faint);font-family:var(--mono)}
+.tp .route{display:flex;align-items:center;gap:6px;margin-top:4px;font-family:var(--mono);font-size:12px;color:var(--text);min-width:0}
+.tp .route span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp .route .from{color:var(--muted)}
+.tp .route svg.i{color:var(--teleport);width:13px;height:13px}
+.tp .sk{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;align-items:center}
+.tp .sk .lbl{font-size:11px;color:var(--faint);margin-right:2px}
+.empty{color:var(--muted);font-size:12px;padding:14px 10px;display:flex;gap:8px;align-items:flex-start;line-height:1.5}
+.empty svg.i{color:var(--faint);margin-top:2px}
+
+/* bottom-left: activity */
+#log{left:16px;bottom:16px;width:320px}
+#logList{padding:8px 14px 10px;font:12px/1.75 var(--mono);height:178px;overflow:hidden}
+#logList div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+#logList .t{color:var(--faint)}
+#logList .ty{display:inline-block;min-width:74px}
+
+/* legend */
+#legend{left:50%;transform:translateX(-50%);bottom:16px;display:flex;gap:14px;padding:0 14px;height:34px;align-items:center;font-size:12px;color:var(--muted);white-space:nowrap}
+#legend span{display:inline-flex;align-items:center;gap:6px}
+#legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+#legend .sep{width:1px;height:16px;background:var(--border)}
+#camctl{right:16px;bottom:16px;display:flex;gap:8px;align-items:center}
+.seg{display:flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:10px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;min-width:30px;padding:0 9px;border-radius:7px;border:1px solid transparent;background:transparent;
+  color:var(--muted);font:500 13px var(--sans);cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
+.seg button:hover{color:var(--text);background:var(--surface-2)}
+.seg button.on{color:var(--text);background:var(--surface-2);border-color:var(--border-strong)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.seg button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.seg .tg{width:26px;height:16px;border-radius:999px;background:var(--border-strong);position:relative;transition:background .15s;flex:none}
+.seg .tg::after{content:"";position:absolute;left:2px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.seg button.on .tg{background:var(--accent)}
+.seg button.on .tg::after{transform:translateX(10px);background:#fff}
+#help{left:50%;transform:translateX(-50%);bottom:56px;font-size:11px;color:var(--faint);pointer-events:none;white-space:nowrap}
+
+/* toasts */
+#toast{left:50%;top:164px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;z-index:4}
+.toast{display:flex;align-items:center;gap:10px;padding:9px 14px 9px 12px;border-radius:8px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--border-strong);box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:13px;font-weight:500;animation:tin .25s ease-out;white-space:nowrap}
+.toast .tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.toast svg.i{width:15px;height:15px}
+.toast.tp{border-color:rgba(91,141,239,.5)}
+.toast.tp .tag,.toast.tp svg.i{color:var(--teleport)}
+.toast.warn{border-color:rgba(138,151,173,.45)}
+.toast.warn .tag,.toast.warn svg.i{color:var(--warning)}
+.toast.bad{border-color:rgba(184,196,214,.4)}
+.toast.bad .tag,.toast.bad svg.i{color:var(--danger)}
+.toast.info .tag,.toast.info svg.i{color:var(--accent)}
+.toast .mono{font-size:12px}
+@keyframes tin{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
+
+body.has-sel #log{display:none}
+body.has-sel #sel{max-height:calc(100vh - 180px)}
+@media(min-width:1800px){.kpi .v{font-size:26px}#feed{width:340px}#sel,#log{width:340px}}
+@media(max-width:1379px){.brand .sub{display:none}}
+@media(max-width:1279px){.clock{display:none}}
+@media(max-width:1280px){#kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.kpi:nth-child(5){border-left:0}.kpi:nth-child(n+5){border-top:1px solid var(--border)}
+  #sel,#feed,#toast{top:220px}#sel{max-height:calc(100vh - 220px - 262px)}#feed{max-height:calc(100vh - 288px)}#legend,#help{display:none}}
+@media(max-width:899px){#feed,#log{display:none}.nav{display:none}}
+@media(max-height:760px){#log{display:none}#sel{max-height:calc(100vh - 180px)}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+
+<header class="top">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="12" height="12" rx="3.5" stroke="#5B8DEF" stroke-width="1.8" opacity=".55"/>
+      <rect x="9" y="9" width="12" height="12" rx="3.5" stroke="#5B8DEF" stroke-width="1.8" fill="rgba(91,141,239,.18)"/>
+    </svg>
+    <span class="name">Teleport</span>
+    <span class="sub">Agent swarm · verified public-data cleaning</span>
+  </div>
+  <nav class="nav">
+    <a href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Overview</a>
+    <a href="/3d" class="on" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>Swarm 3D</a>
+    <a href="/teleports"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><path d="M8.5 19H17a3.5 3.5 0 0 0 0-7H7a3.5 3.5 0 0 1 0-7h8.5"/><circle cx="18" cy="5" r="2.5"/></svg>Teleports</a>
+    <a href="/connect"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/></svg>Connect</a>
+  </nav>
+  <div class="right">
+    <span class="pill" id="hdrPill"><span class="dot"></span>Connecting</span>
+    <span class="pill chipmode" id="hdrMode">—</span>
+    <span class="clock" id="hdrClock"></span>
+    <!-- legacy per-page header targets, kept hidden so page scripts keep working; header.js owns the visible ones -->
+    <span hidden><span id="runPill"></span><span id="modeChip"></span><span id="clock"></span></span>
+  </div>
+  <script src="/header.js"></script>
+</header>
+
+<section id="kpis" class="hud panel">
+  <div class="kpi"><div class="l">Records verified</div>
+    <div class="v"><span id="kDone">0</span><small>/ <span id="kTotal">0</span></small></div>
+    <div class="prog"><div class="bar"><i id="kBar"></i></div><span class="pct" id="kPct">0%</span></div></div>
+  <div class="kpi"><div class="l">Verified fixes</div><div class="v c-success" id="kFix">0</div></div>
+  <div class="kpi"><div class="l">Flagged</div><div class="v c-warning" id="kFlag">0</div></div>
+  <div class="kpi"><div class="l">Teleports</div><div class="v c-teleport" id="kTp">0</div></div>
+  <div class="kpi"><div class="l">Reassigned</div><div class="v" id="kRe">0</div></div>
+  <div class="kpi"><div class="l" title="Duplicates prevented">Duplicates</div><div class="v" id="kDup">0</div></div>
+  <div class="kpi"><div class="l">Work lost</div><div class="v c-success" id="kLost">0</div></div>
+  <div class="kpi"><div class="l">Workers alive</div><div class="v" id="kAlive">0</div></div>
+</section>
+
+<aside id="sel" class="hud panel">
+  <div class="ph"><h2 id="selTitle"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>Machine</h2>
+    <span class="sp"></span><button class="btn ghost icon" id="selClose" title="Clear selection" style="display:none"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div id="selBody"></div>
+  <div class="launch">
+    <div class="sub-h">Add machine</div>
+    <div class="row"><input type="text" id="newMachine" placeholder="pool or machine name" spellcheck="false" autocomplete="off">
+      <button class="btn" id="launchBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Launch 3</button></div>
+  </div>
+</aside>
+
+<aside id="log" class="hud panel">
+  <div class="ph"><h2><svg class="i" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activity</h2></div>
+  <div id="logList"></div>
+</aside>
+
+<div id="help" class="hud">Click a machine to focus · drag to orbit · right-drag or shift-drag to pan · scroll to zoom · Esc to reset</div>
+<div id="camctl" class="hud">
+  <div class="seg" role="group" aria-label="Camera">
+    <button id="zIn" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button id="zOut" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    <button id="zFit" title="Frame all machines (Esc)"><svg viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>Fit</button>
+    <button id="replay" title="Replay the latest teleport animation"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button>
+  </div>
+  <div class="seg"><button id="zFollow" title="Camera follows each new teleport, then returns" aria-pressed="false"><span class="tg"></span>Follow teleports</button></div>
+</div>
+<div id="legend" class="hud panel">
+  <span><i style="background:var(--s-idle)"></i>idle</span>
+  <span><i style="background:var(--s-work)"></i>probe · search · fetch</span>
+  <span><i style="background:var(--s-judge)"></i>judge</span>
+  <span><i style="background:var(--s-commit)"></i>commit</span>
+  <span><i style="background:transparent;border:1px dashed var(--danger)"></i>down</span>
+  <span class="sep"></span>
+  <span><i style="background:var(--accent);height:2px;width:14px;border-radius:1px"></i>teleport</span>
+  <span><i style="background:transparent;border:1px solid var(--text)"></i>lease expired</span>
+</div>
+
+<div id="toast" class="hud"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function num(v){ return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+
+var I = {
+  arrow: '<svg class="i" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  check: '<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  alert: '<svg class="i" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  portal: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>',
+  kill: '<svg class="i" viewBox="0 0 24 24"><path d="M18.4 6.6a9 9 0 1 1-12.8 0M12 2v10"/></svg>',
+  plus: '<svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  clock: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  pointer: '<svg class="i" viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11z"/></svg>'
+};
+
+if (typeof THREE === 'undefined') {
+  document.body.insertAdjacentHTML('beforeend','<div class="hud panel" style="left:50%;top:50%;transform:translate(-50%,-50%);padding:20px">Could not load Three.js from the CDN. The 2D view is at <a href="/">/</a>.</div>');
+  return;
+}
+
+// ---------- palette (design tokens) ----------
+var T_BG = 0x04070D, T_SURF = 0x0A0F1A, T_SURF2 = 0x0E1522, T_BORDER = 0x172133, T_BSTRONG = 0x22304A, T_PAD = 0x0B1220;
+var C_ACCENT = 0x5B8DEF, C_WHITE = 0xE8EEF7, C_MUTED = 0x8A97AD, C_FETCH = C_MUTED, C_TP = C_ACCENT, C_SUCCESS = C_WHITE, C_WARN = C_WHITE, C_DANGER = 0xB8C4D6, C_FAINT = 0x4E5B72;
+var STEP_COLORS = { idle: C_FAINT, probe: C_MUTED, search: C_MUTED, fetch: C_MUTED, judge: C_WHITE, commit: C_ACCENT, backoff: C_MUTED };
+var C_DOWN = 0x2E3A4E;
+var C_DEAD = C_DOWN, C_AMBER = C_WARN, C_GREEN = C_SUCCESS, C_ONLINE = C_ACCENT, C_OFF = C_DANGER;
+function stepColor(step){ return STEP_COLORS[step] != null ? STEP_COLORS[step] : STEP_COLORS.idle; }
+function hex(c){ return '#' + ('000000' + c.toString(16)).slice(-6); }
+function rgba(c, a){ return 'rgba(' + ((c >> 16) & 255) + ',' + ((c >> 8) & 255) + ',' + (c & 255) + ',' + a + ')'; }
+// pools: archil:<POOL>:<sandbox>; machines grouped & tinted by pool
+var POOL_COLORS = [C_MUTED];
+var poolIndex = {};
+function poolOf(name){ var p = String(name).split(':'); return p.length >= 3 ? p[1] : null; }
+function poolColor(name){
+  var p = poolOf(name); if (p == null) return C_ACCENT;
+  if (poolIndex[p] == null){ var code = p.toUpperCase().charCodeAt(0) - 65; poolIndex[p] = POOL_COLORS[((code % POOL_COLORS.length) + POOL_COLORS.length) % POOL_COLORS.length]; }
+  return poolIndex[p];
+}
+function shortMachine(m){ var p = String(m).split(':'); return p.length >= 3 ? p.slice(1).join(':') : m; }
+function stepChip(step, dead, finished){
+  var c = (dead || finished) ? C_MUTED : stepColor(step);
+  return '<span class="chip" style="color:' + hex(c) + ';border-color:' + rgba(c, .35) + ';background:' + rgba(c, .1) + (dead && !finished ? ';border-style:dashed' : '') + '">' + esc(finished ? 'finished' : dead ? 'dead' : (step || 'idle')) + '</span>';
+}
+
+// ---------- renderer / scene ----------
+var canvas = $('c');
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+var DPR = Math.min(window.devicePixelRatio || 1, 2);
+renderer.setPixelRatio(DPR);
+renderer.setClearColor(T_BG, 0); // background + centre lift come from CSS behind the canvas
+var scene = new THREE.Scene();
+scene.fog = new THREE.Fog(T_BG, 55, 160);
+var camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
+
+scene.add(new THREE.HemisphereLight(0xC4CCDA, 0x04070D, 0.5));
+var key = new THREE.DirectionalLight(0xffffff, 0.75); key.position.set(10, 25, 12); scene.add(key);
+var fill = new THREE.DirectionalLight(0xC4CCDA, 0.2); fill.position.set(-14, 10, -10); scene.add(fill);
+
+// floor: soft lit disc + faint grid
+var floorTex = (function(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 512;
+  var g = cv.getContext('2d'); var gr = g.createRadialGradient(256,256,0,256,256,256);
+  gr.addColorStop(0,'rgba(10,18,34,0.95)'); gr.addColorStop(0.55,'rgba(8,13,24,0.5)'); gr.addColorStop(1,'rgba(4,7,13,0)');
+  g.fillStyle = gr; g.fillRect(0,0,512,512);
+  return new THREE.CanvasTexture(cv);
+})();
+var floor = new THREE.Mesh(new THREE.CircleGeometry(60, 64), new THREE.MeshBasicMaterial({ map: floorTex, transparent: true, depthWrite: false }));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -0.03; scene.add(floor);
+var grid = new THREE.GridHelper(160, 64, 0x0E1626, 0x0E1626);
+grid.material.transparent = true; grid.material.opacity = 0.45; grid.material.depthWrite = false; grid.position.y = -0.01;
+scene.add(grid);
+
+// glow texture (soft, used sparingly)
+var glowTex = (function(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  var g = cv.getContext('2d'); var gr = g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.2,'rgba(255,255,255,.55)');
+  gr.addColorStop(0.55,'rgba(255,255,255,.1)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(cv);
+})();
+function glowSprite(color, size, opacity){
+  var m = new THREE.SpriteMaterial({ map: glowTex, color: color, transparent: true, opacity: opacity == null ? 1 : opacity,
+    blending: THREE.AdditiveBlending, depthWrite: false });
+  var s = new THREE.Sprite(m); s.scale.set(size, size, 1); return s;
+}
+
+// ---------- crisp text labels: drawn at devicePixelRatio, fixed on-screen size ----------
+var FONT_SANS = 'Inter, -apple-system, "Segoe UI", sans-serif';
+var FONT_MONO = '"JetBrains Mono", ui-monospace, Menlo, monospace';
+var labels = [];
+var pxToWorld = 0.001;
+function rrect(ctx, x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+// spec: { lines:[{text, font:'mono'|'sans', size, weight, color}], badge:{text,color}, dot:color, accent:color, bg, border }
+function makeLabel(opts){
+  opts = opts || {};
+  var cv = document.createElement('canvas'); var ctx = cv.getContext('2d');
+  var tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+  var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false });
+  var sp = new THREE.Sprite(mat); sp.renderOrder = 10;
+  sp.center.set(0.5, opts.anchorBottom === false ? 0.5 : 0);
+  sp.userData.key = null; sp.userData.cssW = 1; sp.userData.cssH = 1;
+  sp.userData.set = function(spec, force){
+    var k = JSON.stringify(spec); if (!force && k === sp.userData.key) return; sp.userData.key = k; sp.userData.spec = spec;
+    var Q = Math.max(2, DPR * 1.25);
+    var padX = 10, padY = 7, gap = 3;
+    var lines = spec.lines || [];
+    var fonts = lines.map(function(l){ return (l.weight || 500) + ' ' + (l.size || 12) + 'px ' + (l.font === 'mono' ? FONT_MONO : FONT_SANS); });
+    var badgeW = 0;
+    ctx.font = '500 11px ' + FONT_MONO;
+    if (spec.badge) badgeW = Math.ceil(ctx.measureText(spec.badge.text).width) + 10 + 7;
+    var w = 0;
+    lines.forEach(function(l, i){ ctx.font = fonts[i]; var lw = ctx.measureText(l.text).width + (i === 0 ? badgeW : 0) + (i === 1 && spec.dot ? 12 : 0); w = Math.max(w, lw); });
+    var h = padY * 2; lines.forEach(function(l, i){ h += Math.round((l.size || 12) * 1.3) + (i ? gap : 0); });
+    var cw = Math.ceil(w + padX * 2), ch = Math.ceil(h);
+    cv.width = Math.ceil(cw * Q); cv.height = Math.ceil(ch * Q);
+    ctx.setTransform(Q, 0, 0, Q, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    if (spec.bg !== false){
+      rrect(ctx, 0.5, 0.5, cw - 1, ch - 1, 6);
+      ctx.fillStyle = 'rgba(10,15,26,0.92)'; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = spec.border || '#22304A'; ctx.stroke();
+      if (spec.accent){ ctx.save(); rrect(ctx, 0.5, 0.5, cw - 1, ch - 1, 6); ctx.clip(); ctx.fillStyle = spec.accent; ctx.fillRect(0, 0, 2, ch); ctx.restore(); }
+    }
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    var y = padY;
+    lines.forEach(function(l, i){
+      var lh = Math.round((l.size || 12) * 1.3); var cy = y + lh / 2 + 0.5;
+      var x = padX;
+      if (i === 0 && spec.badge){
+        ctx.font = '500 11px ' + FONT_MONO;
+        var bw = ctx.measureText(spec.badge.text).width + 10;
+        rrect(ctx, x, cy - 8, bw, 16, 4); ctx.fillStyle = 'rgba(14,21,34,0.9)'; ctx.fill();
+        ctx.strokeStyle = '#22304A'; ctx.stroke();
+        ctx.fillStyle = '#8A97AD'; ctx.fillText(spec.badge.text, x + 5, cy + 0.5);
+        x += bw + 7;
+      }
+      if (i === 1 && spec.dot){ ctx.beginPath(); ctx.arc(x + 3, cy, 3, 0, Math.PI * 2); ctx.fillStyle = spec.dot; ctx.fill(); x += 12; }
+      ctx.font = fonts[i]; ctx.fillStyle = l.color || (i === 0 ? '#E8EEF7' : '#8A97AD');
+      ctx.fillText(l.text, x, cy);
+      y += lh + gap;
+    });
+    tex.needsUpdate = true;
+    sp.userData.cssW = cw; sp.userData.cssH = ch;
+    sp.scale.set(cw * pxToWorld, ch * pxToWorld, 1);
+  };
+  labels.push(sp);
+  return sp;
+}
+function rescaleLabels(){ labels.forEach(function(l){ l.scale.set(l.userData.cssW * pxToWorld, l.userData.cssH * pxToWorld, 1); }); }
+function forgetLabel(sp){ labels = labels.filter(function(l){ return l !== sp; }); }
+if (document.fonts && document.fonts.load){
+  Promise.all([document.fonts.load('500 12px Inter'), document.fonts.load('600 12px Inter'), document.fonts.load('500 12px "JetBrains Mono"'), document.fonts.load('400 12px "JetBrains Mono"')])
+    .then(function(){ return document.fonts.ready; })
+    .then(function(){ labels.forEach(function(l){ if (l.userData.spec) l.userData.set(l.userData.spec, true); }); })
+    .catch(function(){});
+}
+
+// ---------- shared disk at the centre: drawn as a database (stack of thin matte platters) ----------
+var DISK_R = 2.7, PLAT_H = 0.34, PLAT_GAP = 0.2, RING_R = 4.1;
+var DISK_TOP = 0.16 + 3 * PLAT_H + 2 * PLAT_GAP;
+var disk = new THREE.Group(); scene.add(disk);
+var diskSpin = new THREE.Group(); disk.add(diskSpin);
+(function(){
+  var mat = new THREE.MeshStandardMaterial({ color: 0x1A2335, metalness: 0.1, roughness: 0.85 });
+  var rim = new THREE.LineBasicMaterial({ color: 0x8A97AD, transparent: true, opacity: 0.6 });
+  var base = new THREE.Mesh(new THREE.CylinderGeometry(DISK_R + 0.45, DISK_R + 0.55, 0.12, 96), new THREE.MeshStandardMaterial({ color: T_SURF, metalness: 0.1, roughness: 0.9 }));
+  base.position.y = 0.06; disk.add(base);
+  var baseRim = new THREE.LineSegments(new THREE.EdgesGeometry(base.geometry, 30), new THREE.LineBasicMaterial({ color: T_BSTRONG, transparent: true, opacity: 0.9 }));
+  baseRim.position.copy(base.position); disk.add(baseRim);
+  for (var i = 0; i < 3; i++){
+    var geo = new THREE.CylinderGeometry(DISK_R, DISK_R, PLAT_H, 96);
+    var p = new THREE.Mesh(geo, mat); p.position.y = 0.16 + PLAT_H / 2 + i * (PLAT_H + PLAT_GAP); diskSpin.add(p);
+    var e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), rim);
+    e.position.copy(p.position); diskSpin.add(e);
+    // fine accent band on each platter's edge, like a storage-volume glyph
+    var band = new THREE.Mesh(new THREE.TorusGeometry(DISK_R + 0.005, 0.012, 4, 128), new THREE.MeshBasicMaterial({ color: C_ACCENT, transparent: true, opacity: 0.35 }));
+    band.rotation.x = Math.PI / 2; band.position.y = p.position.y; diskSpin.add(band);
+  }
+  // connector stems between platters
+  var stemH = DISK_TOP - 0.16 - PLAT_H; // ends inside the top platter (no coplanar faces -> no z-fighting)
+  var stem = new THREE.Mesh(new THREE.CylinderGeometry(DISK_R * 0.82, DISK_R * 0.82, stemH, 96), new THREE.MeshStandardMaterial({ color: 0x080C14, roughness: 1 }));
+  stem.position.y = 0.16 + PLAT_H / 2 + stemH / 2; diskSpin.add(stem);
+})();
+var diskGlow = glowSprite(C_ACCENT, 6, 0); diskGlow.position.y = 0.9; disk.add(diskGlow);
+var diskRing = null;
+var diskRingBase = new THREE.Mesh(new THREE.TorusGeometry(RING_R, 0.025, 6, 192), new THREE.MeshBasicMaterial({ color: T_BSTRONG }));
+diskRingBase.rotation.x = Math.PI / 2; diskRingBase.position.y = 0.04; disk.add(diskRingBase);
+var diskRingGlow = glowSprite(C_SUCCESS, 0.9, 0); disk.add(diskRingGlow);
+var diskLabel = makeLabel(); diskLabel.position.y = DISK_TOP + 1.4; disk.add(diskLabel);
+var diskMeta = { id: '', entity: '' };
+function setDiskLabel(done, total){
+  var pct = total ? Math.round(done / total * 100) : 0;
+  var lines = [{ text: 'Archil disk', font: 'sans', size: 16, weight: 600 },
+    { text: (diskMeta.id ? diskMeta.id + '  ·  ' : '') + pct + '% committed', font: 'mono', size: 11, weight: 400 }];
+  if (diskMeta.entity) lines.push({ text: diskMeta.entity, font: 'sans', size: 11, weight: 500, color: '#4E5B72' });
+  diskLabel.userData.set({ lines: lines, dot: '#5B8DEF' });
+}
+setDiskLabel(0, 0);
+var lastProgress = -1, ringFrac = 0;
+function setDiskProgress(frac){
+  frac = Math.max(0, Math.min(1, frac));
+  if (Math.abs(frac - lastProgress) < 1e-4) return; lastProgress = frac;
+  if (diskRing){ disk.remove(diskRing); diskRing.geometry.dispose(); diskRing.material.dispose(); }
+  ringFrac = frac;
+  if (frac <= 0) { diskRing = null; return; }
+  diskRing = new THREE.Mesh(new THREE.TorusGeometry(RING_R, 0.06, 8, 192, Math.PI * 2 * frac),
+    new THREE.MeshBasicMaterial({ color: C_ACCENT }));
+  diskRing.rotation.x = -Math.PI / 2; diskRing.rotation.z = Math.PI / 2; diskRing.position.y = 0.05;
+  disk.add(diskRing);
+}
+
+// ---------- machines ----------
+var machines = {};   // name -> M
+var workers = {};    // worker id -> W
+var pads = [];       // meshes for raycasting
+var selected = null;
+
+function machineKind(name){
+  if (/^archil:/i.test(name)) return 'Archil sandbox';
+  if (/laptop/i.test(name)) return 'Laptop';
+  return 'Machine';
+}
+
+var PAD_W = 5.4, PAD_H = 0.42;
+function createMachine(name){
+  var g = new THREE.Group();
+  var pc = poolColor(name);
+  var padGeo = new THREE.BoxGeometry(PAD_W, PAD_H, PAD_W);
+  var padMat = new THREE.MeshStandardMaterial({ color: T_PAD, metalness: 0.15, roughness: 0.85, emissive: 0x000000, transparent: true, opacity: 1 });
+  var pad = new THREE.Mesh(padGeo, padMat); pad.position.y = PAD_H / 2 + 0.06; pad.userData.machine = name; g.add(pad);
+  // plinth (slightly larger, darker) for a "hardware" look
+  var plinth = new THREE.Mesh(new THREE.BoxGeometry(PAD_W + 0.3, 0.08, PAD_W + 0.3), new THREE.MeshStandardMaterial({ color: 0x080D18, metalness: 0.1, roughness: 0.9, transparent: true, opacity: 1 }));
+  plinth.position.y = 0.04; g.add(plinth);
+  var edgeMat = new THREE.LineBasicMaterial({ color: pc, transparent: true, opacity: 0.8 });
+  var edges = new THREE.LineSegments(new THREE.EdgesGeometry(padGeo), edgeMat); edges.position.copy(pad.position); g.add(edges);
+  var dashMat = new THREE.LineDashedMaterial({ color: C_DANGER, dashSize: 0.22, gapSize: 0.16, transparent: true, opacity: 0 });
+  var dashed = new THREE.LineSegments(new THREE.EdgesGeometry(padGeo), dashMat); dashed.computeLineDistances(); dashed.position.copy(pad.position); dashed.scale.setScalar(1.002); g.add(dashed);
+  // top inset panel
+  var topMat = new THREE.MeshBasicMaterial({ color: pc, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false });
+  var top = new THREE.Mesh(new THREE.PlaneGeometry(PAD_W - 0.5, PAD_W - 0.5), topMat); top.rotation.x = -Math.PI / 2; top.position.y = PAD_H + 0.065; g.add(top);
+  var insetMat = new THREE.LineBasicMaterial({ color: pc, transparent: true, opacity: 0.25 });
+  var inset = new THREE.LineLoop(new THREE.EdgesGeometry(new THREE.PlaneGeometry(PAD_W - 0.5, PAD_W - 0.5)), insetMat);
+  inset.rotation.x = -Math.PI / 2; inset.position.y = PAD_H + 0.07; g.add(inset);
+  // front status LED strip
+  var ledMat = new THREE.MeshBasicMaterial({ color: pc, transparent: true, opacity: 0.9 });
+  var led = new THREE.Mesh(new THREE.BoxGeometry(PAD_W * 0.42, 0.05, 0.02), ledMat);
+  g.add(led); // positioned to face the disk each frame
+  // ground glow (subtle)
+  var haloMat = new THREE.MeshBasicMaterial({ map: glowTex, color: pc, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false });
+  var halo = new THREE.Mesh(new THREE.PlaneGeometry(PAD_W * 2.4, PAD_W * 2.4), haloMat); halo.rotation.x = -Math.PI / 2; halo.position.y = 0.0; g.add(halo);
+  var flashGlow = glowSprite(C_AMBER, 7, 0); flashGlow.position.y = 1.0; g.add(flashGlow);
+  var label = makeLabel(); label.position.y = 2.9; g.add(label);
+  var selMat = new THREE.LineBasicMaterial({ color: C_ACCENT, transparent: true, opacity: 0 });
+  var selRing = new THREE.LineLoop(new THREE.EdgesGeometry(new THREE.PlaneGeometry(PAD_W + 0.9, PAD_W + 0.9)), selMat);
+  selRing.rotation.x = -Math.PI / 2; selRing.position.y = 0.03; g.add(selRing);
+
+  // link to shared disk
+  var linkGeo = new THREE.BufferGeometry(); linkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  var link = new THREE.Line(linkGeo, new THREE.LineBasicMaterial({ color: pc, transparent: true, opacity: 0.25 }));
+  scene.add(link);
+
+  scene.add(g); pads.push(pad);
+  var M = { name: name, group: g, pad: pad, padMat: padMat, dashMat: dashMat, plinth: plinth, edgeMat: edgeMat, topMat: topMat, insetMat: insetMat, ledMat: ledMat, led: led,
+    haloMat: haloMat, halo: halo, poolColor: new THREE.Color(pc),
+    flashGlow: flashGlow, label: label, selRing: selRing, link: link,
+    pos: new THREE.Vector3(), target: new THREE.Vector3(), placed: false,
+    flash: null, flashT: 0, power: 1, powerTarget: 1, present: true, fade: 1, workerIds: [], aliveCount: 0, total: 0, done: 0 };
+  machines[name] = M;
+  return M;
+}
+
+function removeMachine(M){
+  scene.remove(M.group); scene.remove(M.link);
+  forgetLabel(M.label);
+  M.group.traverse(function(o){ if (o.geometry) o.geometry.dispose(); if (o.material){ if (o.material.map && o.material.map !== glowTex) o.material.map.dispose(); o.material.dispose(); } });
+  M.link.geometry.dispose(); M.link.material.dispose();
+  pads = pads.filter(function(p){ return p !== M.pad; });
+  delete machines[M.name];
+  if (selected === M.name) select(null);
+}
+
+function flashMachine(name, color, strength){
+  var M = machines[name]; if (!M) return;
+  M.flash = new THREE.Color(color); M.flashT = strength || 1;
+}
+
+// ---------- workers ----------
+var unitGeo = new THREE.BoxGeometry(1, 1, 1);
+function createWorker(id, machine){
+  var mat = new THREE.MeshStandardMaterial({ color: 0x111A2A, emissive: stepColor('idle'), emissiveIntensity: 0.5, metalness: 0.1, roughness: 0.7, transparent: true, opacity: 1 });
+  var mesh = new THREE.Mesh(unitGeo, mat);
+  var wedges = new THREE.LineSegments(new THREE.EdgesGeometry(unitGeo), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 }));
+  mesh.add(wedges);
+  var glow = glowSprite(stepColor('idle'), 1.6, 0.3);
+  scene.add(mesh); scene.add(glow);
+  var W = { id: id, machine: machine, mesh: mesh, mat: mat, wedges: wedges, glow: glow, pos: new THREE.Vector3(), target: new THREE.Vector3(), size: 0.6,
+    color: new THREE.Color(stepColor('idle')), targetColor: new THREE.Color(stepColor('idle')), alive: true, step: 'idle',
+    placed: false, phase: Math.random() * 6.28, sink: 0, present: true, fade: 1 };
+  workers[id] = W; return W;
+}
+function removeWorker(W){
+  scene.remove(W.mesh); scene.remove(W.glow); W.mat.dispose(); W.wedges.geometry.dispose(); W.wedges.material.dispose(); W.glow.material.dispose(); delete workers[W.id];
+}
+
+// ---------- effects ----------
+var effects = [];
+function shockwave(pos, color, maxR, dur){
+  var m = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 96), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.copy(pos); scene.add(m);
+  effects.push({ t: 0, dur: dur || 1.2, update: function(k){ var e = 1 - Math.pow(1 - k, 3); var s = 0.5 + e * (maxR || 5); m.scale.set(s, s, s); m.material.opacity = 0.5 * (1 - k); },
+    dispose: function(){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); } });
+}
+function sparks(pos, color, n){
+  var pts = [];
+  for (var i = 0; i < (n || 14); i++){
+    var s = glowSprite(color, 0.45, 0.9); s.position.copy(pos); scene.add(s);
+    pts.push({ s: s, v: new THREE.Vector3((Math.random() - 0.5) * 2.4, 2.5 + Math.random() * 3, (Math.random() - 0.5) * 2.4) });
+  }
+  var last = 0;
+  effects.push({ t: 0, dur: 1.2, update: function(k){
+      var dt = k - last; last = k;
+      pts.forEach(function(p){ p.v.y -= 6 * dt * 1.2; p.s.position.addScaledVector(p.v, dt * 1.2); p.s.material.opacity = 0.9 * (1 - k); });
+    }, dispose: function(){ pts.forEach(function(p){ scene.remove(p.s); p.s.material.dispose(); }); } });
+}
+function packet(machineName, toDisk, color){
+  var M = machines[machineName]; if (!M) return;
+  var s = glowSprite(color, 0.4, 0.6); scene.add(s);
+  var a = new THREE.Vector3(), b = new THREE.Vector3(0, DISK_TOP * 0.6, 0);
+  effects.push({ t: 0, dur: 0.9, update: function(k){
+      a.set(M.pos.x, 0.5, M.pos.z);
+      if (toDisk) s.position.lerpVectors(a, b, k); else s.position.lerpVectors(b, a, k);
+      s.material.opacity = 0.6 * Math.sin(k * Math.PI);
+    }, dispose: function(){ scene.remove(s); s.material.dispose(); } });
+}
+
+// teleport arc
+var pendingTeleports = [];
+function machineAnchor(name, out){
+  var M = machines[name];
+  if (M) return out.set(M.pos.x, 0.9, M.pos.z);
+  return out.set(0, DISK_TOP, 0); // unknown machine: start from the shared disk
+}
+function launchTeleport(tp){
+  var from = tp.from_machine || '', to = tp.machine || '';
+  var N = 96;
+  var trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+  trailGeo.setDrawRange(0, 0);
+  var trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: C_TP, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+  var trail2 = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xA9C3F5, transparent: true, opacity: 0.2, depthWrite: false }));
+  var head = glowSprite(C_TP, 1.1, 0.5), core = glowSprite(0xE8EEF7, 0.3, 0.9);
+  followTeleport(from, to);
+  var label = makeLabel();
+  var skipped = (tp.skipped && tp.skipped.length) ? 'resumes after ' + tp.skipped.join(', ') : 'resumes from start';
+  label.userData.set({ lines: [{ text: String(tp.tid || 'task'), font: 'mono', size: 13, weight: 500, color: '#E8EEF7' },
+    { text: shortMachine(from || '?') + '  →  ' + shortMachine(to || '?') + '  ·  ' + skipped, font: 'sans', size: 11, weight: 500 }],
+    border: '#2E3F5E' });
+  scene.add(trail); scene.add(trail2); scene.add(head); scene.add(core); scene.add(label);
+  var beads = []; // soft beads along the arc: WebGL lines are 1px, so these make the beam readable on a projector
+  for (var bi = 0; bi < 44; bi++){ var bs = glowSprite(C_TP, 0.3, 0.0); scene.add(bs); beads.push(bs); }
+  var p0 = new THREE.Vector3(), p1 = new THREE.Vector3(), ctrl = new THREE.Vector3(), tmp = new THREE.Vector3();
+  var same = from === to;
+  var curve = new THREE.QuadraticBezierCurve3(p0, ctrl, p1);
+  function refresh(){
+    machineAnchor(from, p0); machineAnchor(to, p1);
+    if (same){ // hop within the same machine: a tall loop
+      var M = machines[to]; var side = new THREE.Vector3(1, 0, 0);
+      if (M && M.pos.lengthSq() > 0.01) side.set(-M.pos.z, 0, M.pos.x).normalize();
+      p0.addScaledVector(side, -1.4); p1.addScaledVector(side, 1.4);
+      ctrl.copy(p0).add(p1).multiplyScalar(0.5); ctrl.y += 8;
+    } else {
+      ctrl.copy(p0).add(p1).multiplyScalar(0.5); ctrl.y += 4.5 + p0.distanceTo(p1) * 0.42;
+    }
+  }
+  refresh();
+  flashMachine(from, C_AMBER, 0.8);
+  var arrived = false, travel = 3.0, hold = 2.6;
+  effects.push({ t: 0, dur: travel + hold, update: function(k, t){
+      refresh();
+      var u = Math.min(1, t / travel);
+      var e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; // easeInOutQuad
+      var arr = trailGeo.attributes.position.array, n = Math.max(2, Math.round(e * (N - 1)) + 1);
+      for (var i = 0; i < n; i++){ curve.getPoint((i / (N - 1)), tmp); arr[i*3] = tmp.x; arr[i*3+1] = tmp.y; arr[i*3+2] = tmp.z; }
+      trailGeo.attributes.position.needsUpdate = true; trailGeo.setDrawRange(0, n);
+      var fadeK = u >= 1 ? Math.max(0, 1 - (t - travel) / hold) : 1;
+      for (var bj = 0; bj < beads.length; bj++){
+        var q = bj / (beads.length - 1);
+        curve.getPoint(q * e, tmp); beads[bj].position.copy(tmp);
+        var bsz = 0.25 + 0.35 * q; beads[bj].scale.set(bsz, bsz, 1);
+        beads[bj].material.opacity = (0.06 + 0.32 * q) * fadeK;
+      }
+      curve.getPoint(e, tmp);
+      head.position.copy(tmp); core.position.copy(tmp);
+      label.position.set(tmp.x, tmp.y + 0.8, tmp.z);
+      
+      if (u >= 1 && !arrived){
+        arrived = true;
+        shockwave(new THREE.Vector3(p1.x, 0.5, p1.z), C_TP, 4, 1.3);
+        flashMachine(to, C_TP, 1.2);
+      }
+      if (u >= 1){
+        var f = Math.max(0, 1 - (t - travel) / hold);
+        trail.material.opacity = f; trail2.material.opacity = 0.2 * f; head.material.opacity = 0.5 * f; core.material.opacity = 0.9 * f; core.material.opacity = f;
+        label.material.opacity = Math.min(1, f * 1.5);
+      }
+    }, dispose: function(){
+      forgetLabel(label);
+      beads.forEach(function(b){ scene.remove(b); b.material.dispose(); });
+      [trail, trail2, head, core, label].forEach(function(o){ scene.remove(o); if (o.material.map && o.material.map !== glowTex) o.material.map.dispose(); o.material.dispose(); });
+      trailGeo.dispose();
+    } });
+}
+
+// ---------- toasts ----------
+function toast(html, cls, ms){
+  var d = document.createElement('div'); d.className = 'toast ' + (cls || ''); d.innerHTML = html;
+  var box = $('toast'); box.appendChild(d);
+  while (box.children.length > 3) box.removeChild(box.firstChild);
+  setTimeout(function(){ d.style.transition = 'opacity .5s'; d.style.opacity = '0'; setTimeout(function(){ if (d.parentNode) d.parentNode.removeChild(d); }, 600); }, ms || 3200);
+}
+function tTag(icon, tag){ return icon + '<span class="tag">' + tag + '</span>'; }
+
+// ---------- camera: damped orbit / pan / zoom-to-cursor, fly-to, follow ----------
+var cam = { theta: 0.6, phi: 0.98, dist: 40, target: new THREE.Vector3(0, 0.6, 0) };          // current (rendered)
+var goal = { theta: 0.6, phi: 0.98, dist: 40, target: new THREE.Vector3(0, 0.6, 0) };         // desired (eased toward)
+var view = { fitDist: 40, fitR: 14, minDist: 7, maxDist: 160, lastInteract: -1e9, mode: 'overview', follow: false, followUntil: 0, followReturn: null };
+var drag = null, ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+function touchCam(){ view.lastInteract = performance.now(); view.followReturn = null; }
+function nearestAngle(a, ref){ while (a - ref > Math.PI) a -= Math.PI * 2; while (a - ref < -Math.PI) a += Math.PI * 2; return a; }
+function clampGoal(){ goal.dist = Math.max(view.minDist, Math.min(view.maxDist, goal.dist)); goal.phi = Math.max(0.2, Math.min(1.45, goal.phi));
+  var lim = view.fitR + 12, l = Math.hypot(goal.target.x, goal.target.z); if (l > lim){ goal.target.x *= lim / l; goal.target.z *= lim / l; } }
+function fitView(){
+  view.mode = 'overview';
+  goal.target.set(0, 0.6, 0); goal.dist = view.fitDist; goal.phi = 0.98;
+  clampGoal();
+}
+function zoomBy(f){ goal.dist *= f; clampGoal(); touchCam(); }
+function focusMachine(name){
+  var M = machines[name]; if (!M) return;
+  view.mode = 'focus';
+  var p = M.target.lengthSq() > 0.01 ? M.target : M.pos;
+  goal.target.set(p.x, 1.2, p.z);
+  goal.theta = nearestAngle(Math.atan2(p.z, p.x), cam.theta); // look from outside the ring, toward the disk
+  goal.phi = 0.95; goal.dist = 20; clampGoal(); touchCam();
+}
+function followTeleport(from, to){
+  if (!view.follow || drag || performance.now() - view.lastInteract < 4000) return; // don't yank the camera mid-interaction
+  var a = new THREE.Vector3(), b = new THREE.Vector3(); machineAnchor(from, a); machineAnchor(to, b);
+  if (!view.followReturn && view.followUntil === 0) view.followReturn = { theta: goal.theta, phi: goal.phi, dist: goal.dist, target: goal.target.clone(), mode: view.mode };
+  var mid = a.clone().add(b).multiplyScalar(0.5), d = a.distanceTo(b);
+  goal.target.set(mid.x, 2 + d * 0.15, mid.z);
+  var perp = Math.atan2(b.x - a.x, -(b.z - a.z)); // view the arc side-on
+  var t1 = nearestAngle(perp, cam.theta), t2 = nearestAngle(perp + Math.PI, cam.theta);
+  goal.theta = Math.abs(t1 - cam.theta) < Math.abs(t2 - cam.theta) ? t1 : t2;
+  goal.phi = 1.02; goal.dist = Math.max(18, d * 1.25 + 14); clampGoal();
+  view.followUntil = performance.now() + 6200;
+}
+canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+canvas.addEventListener('pointerdown', function(e){
+  drag = { x: e.clientX, y: e.clientY, moved: 0, pan: e.button === 2 || e.button === 1 || e.shiftKey };
+  touchCam(); canvas.style.cursor = drag.pan ? 'move' : 'grabbing'; try { canvas.setPointerCapture(e.pointerId); } catch(_){}
+});
+canvas.addEventListener('pointermove', function(e){
+  if (!drag) { hover(e); return; }
+  var dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  drag.moved += Math.abs(dx) + Math.abs(dy);
+  if (drag.moved < 4) return;
+  if (drag.pan){
+    var k = goal.dist * 2 * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, window.innerHeight);
+    var rx = -Math.sin(goal.theta), rz = Math.cos(goal.theta);            // screen-left on the ground
+    var fx = -Math.cos(goal.theta), fz = -Math.sin(goal.theta);           // screen-up (away from camera) on the ground
+    var up = k / Math.max(0.35, Math.cos(goal.phi) + 0.0001) * 0.6;
+    goal.target.x += dx * k * rx + dy * up * fx; goal.target.z += dx * k * rz + dy * up * fz;
+    view.mode = 'free';
+  } else {
+    goal.theta += dx * 0.006; goal.phi -= dy * 0.005;
+  }
+  clampGoal(); touchCam();
+});
+canvas.addEventListener('pointerup', function(e){
+  if (drag && drag.moved < 6 && !drag.pan) pick(e);
+  drag = null; hover(e);
+});
+var groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.6), wheelPt = new THREE.Vector3();
+canvas.addEventListener('wheel', function(e){
+  e.preventDefault();
+  var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  var f = Math.exp(dy * (e.ctrlKey ? 0.01 : 0.0016));                    // ctrlKey = trackpad pinch
+  var before = goal.dist; goal.dist = Math.max(view.minDist, Math.min(view.maxDist, goal.dist * f));
+  var r = goal.dist / before;
+  // zoom toward the point under the cursor
+  var rc = canvas.getBoundingClientRect();
+  mouse.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  if (r < 1 && ray.ray.intersectPlane(groundPlane, wheelPt)){
+    goal.target.x += (wheelPt.x - goal.target.x) * (1 - r); goal.target.z += (wheelPt.z - goal.target.z) * (1 - r);
+    view.mode = 'free';
+  }
+  clampGoal(); touchCam();
+}, { passive: false });
+window.addEventListener('keydown', function(e){
+  if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+  if (e.key === 'Escape'){ select(null); fitView(); touchCam(); }
+  else if (e.key === '+' || e.key === '='){ zoomBy(0.8); }
+  else if (e.key === '-' || e.key === '_'){ zoomBy(1.25); }
+});
+$('zIn').onclick = function(){ zoomBy(0.75); };
+$('zOut').onclick = function(){ zoomBy(1 / 0.75); };
+$('zFit').onclick = function(){ fitView(); touchCam(); };
+$('zFollow').onclick = function(){
+  view.follow = !view.follow; this.classList.toggle('on', view.follow); this.setAttribute('aria-pressed', String(view.follow));
+  if (!view.follow && view.followReturn){ var R0 = view.followReturn; goal.theta = R0.theta; goal.phi = R0.phi; goal.dist = R0.dist; goal.target.copy(R0.target); view.followReturn = null; view.followUntil = 0; }
+};
+
+function hit(e){
+  var r = canvas.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  var hs = ray.intersectObjects(pads, false);
+  return hs.length ? hs[0].object.userData.machine : null;
+}
+var hovered = null;
+function pick(e){ var m = hit(e); if (m){ select(m); focusMachine(m); } else if (selected){ select(null); } }
+function hover(e){ hovered = hit(e); canvas.style.cursor = hovered ? 'pointer' : 'grab'; }
+
+// ---------- selection panel ----------
+var lastSelHtml = '';
+function select(name){
+  lastSelHtml = '';
+  selected = name && machines[name] ? name : null;
+  $('selClose').style.display = selected ? '' : 'none';
+  document.body.classList.toggle('has-sel', !!selected);
+  renderSel();
+}
+$('selClose').onclick = function(){ select(null); fitView(); touchCam(); };
+function renderSel(){
+  var h;
+  if (!selected){
+    var n = Object.keys(machines).filter(function(k){ return machines[k].present; }).length;
+    h = '<div class="hint" style="display:flex;gap:10px;align-items:flex-start">' + I.pointer.replace('class="i"', 'class="i" style="margin-top:3px;color:var(--faint)"') +
+      '<div><b>Select a machine</b> in the scene to inspect its workers, kill half of them, or launch more. ' +
+      '<span style="color:var(--faint)">' + n + ' machine' + (n === 1 ? '' : 's') + ' online.</span></div></div>';
+    if (h === lastSelHtml) return; lastSelHtml = h; $('selBody').innerHTML = h; return;
+  }
+  var M = machines[selected]; if (!M) { select(null); return; }
+  var ws = M.workerIds.map(function(id){ return lastWorkerData[id]; }).filter(Boolean);
+  var alive = ws.filter(function(w){ return w.alive; }).length;
+  var status = M.total === 0 ? '<span class="c-muted">No workers</span>' : alive === 0 ? (runComplete ? '<span class="c-muted">Finished</span>' : '<span class="c-muted">Down</span>') : '<span class="c-accent">Online</span>';
+  var pool = poolOf(M.name), pc = poolColor(M.name);
+  h = '<div class="mhead">' + (pool != null ? '<span class="pool" style="color:' + hex(pc) + ';border-color:' + rgba(pc, .45) + ';background:' + rgba(pc, .12) + '">' + esc(pool) + '</span>' : '') +
+      '<span class="mname">' + esc(M.name) + '</span></div>' +
+    '<div class="mkind">' + machineKind(M.name) + (pool != null ? ' · pool ' + esc(pool) : '') + '</div>' +
+    '<div class="stats"><div><div class="l">Status</div><div class="v" style="font-family:var(--sans);font-size:13px">' + status + '</div></div>' +
+      '<div><div class="l">Alive</div><div class="v">' + alive + '<span class="c-muted">/' + ws.length + '</span></div></div>' +
+      '<div><div class="l">Done</div><div class="v">' + M.done + '</div></div></div>' +
+    '<div class="btns"><button class="btn danger" id="killBtn"' + (alive ? '' : ' disabled') + '>' + I.kill + 'Kill 50%</button>' +
+    '<button class="btn" id="launchHere">' + I.plus + 'Launch 3 here</button></div>';
+  if (ws.length) h += '<div class="sub-h">Workers</div>';
+  ws.sort(function(a, b){ return (b.alive - a.alive) || String(a.worker).localeCompare(String(b.worker)); });
+  ws.forEach(function(w){
+    h += '<div class="wk"><span class="id" style="' + (w.alive ? '' : runComplete ? 'color:var(--muted)' : 'color:var(--faint);text-decoration:line-through') + '">' + esc(shortWorker(w.worker, M.name)) + '</span>' +
+      '<span class="tid">' + esc(w.tid || '') + '</span>' + stepChip(w.step, !w.alive, !w.alive && runComplete) + '</div>';
+  });
+  if (h === lastSelHtml) return; // avoid swallowing clicks by re-rendering identical markup
+  lastSelHtml = h;
+  $('selBody').innerHTML = h;
+  $('killBtn').onclick = function(){ doKill(M.name); };
+  $('launchHere').onclick = function(){ doLaunch(launchTargetFor(M.name)); };
+}
+function shortWorker(w, m){ w = String(w || ''); return (m && w.indexOf(m + '-') === 0) ? w.slice(m.length + 1) : w; }
+// in archil mode, "launch here" means: launch into this machine's pool
+function launchTargetFor(name){ return name; }
+
+// ---------- controls ----------
+function post(url, body){
+  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; }); });
+}
+function doKill(name){
+  toast(tTag(I.kill, 'Kill') + ' Killing 50% of workers on <span class="mono">' + esc(name) + '</span>', 'bad', 2200);
+  flashMachine(name, C_OFF, 1.2);
+  post('/api/kill', { machine: name, fraction: 0.5 }).then(function(j){
+    var k = j && j.killed; var n = Array.isArray(k) ? k.length : (typeof k === 'number' ? k : null);
+    toast(tTag(I.kill, 'Killed') + ' ' + (n == null ? '' : n + ' ') + 'worker' + (n === 1 ? '' : 's') + ' on <span class="mono">' + esc(name) + '</span> <span class="c-muted">· leases will expire, then tasks teleport</span>', 'bad', 4200);
+  }).catch(function(e){ toast(tTag(I.alert, 'Kill failed') + ' ' + esc(e.message), 'bad'); });
+}
+function doLaunch(name){
+  name = (name || '').trim(); if (!name) { $('newMachine').focus(); return; }
+  toast(tTag(I.plus, 'Launch') + ' Launching 3 workers on <span class="mono">' + esc(name) + '</span>', 'info', 2200);
+  post('/api/launch', { machine: name, n: 3 }).then(function(){
+    toast(tTag(I.check, 'Launched') + ' 3 workers on <span class="mono">' + esc(name) + '</span>', 'info');
+  }).catch(function(e){ toast(tTag(I.alert, 'Launch failed') + ' ' + esc(e.message), 'bad'); });
+}
+$('launchBtn').onclick = function(){ doLaunch($('newMachine').value); };
+$('newMachine').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLaunch($('newMachine').value); });
+$('replay').onclick = function(){ if (lastTeleports.length) pendingTeleports.push(lastTeleports[lastTeleports.length - 1]); };
+
+// ---------- state sync ----------
+var seenEvents = new Set(), seenTeleports = new Set(), firstPoll = true;
+var lastWorkerData = {}, lastTeleports = [], logLines = [], runComplete = false, modeInit = false, lastState = null;
+function evKey(e){ return [e.ts, e.type, e.worker, e.tid].join('|'); }
+function tpKey(t){ return t.ts + '|' + t.tid; }
+function isReaper(w){ return /^reaper/i.test(String(w || '')); }
+function machineOfWorker(id){
+  var w = lastWorkerData[id]; if (w) return w.machine;
+  for (var m in machines){ if (String(id).indexOf(m + '-') === 0) return m; }
+  return null;
+}
+
+function layoutMachines(){
+  // sort by pool then name; pools get a clear angular gap. >8 machines: two staggered concentric rings.
+  var names = Object.keys(machines).filter(function(n){ return machines[n].present; }).sort(function(a, b){
+    var pa = poolOf(a) || '~', pb = poolOf(b) || '~'; return pa < pb ? -1 : pa > pb ? 1 : (a < b ? -1 : a > b ? 1 : 0);
+  });
+  var n = names.length;
+  var gaps = 0; for (var i = 1; i < n; i++) if (poolOf(names[i]) !== poolOf(names[i - 1])) gaps++;
+  if (gaps > 0 && poolOf(names[0]) !== poolOf(names[n - 1])) gaps++;
+  var GAP = 1.0, slots = n + gaps * GAP;
+  var two = n > 8;
+  var R1 = two ? Math.max(16, slots * 1.45) : (n <= 1 ? 15 : Math.max(15, slots * 2.4));
+  var R2 = two ? R1 + 11 : R1;
+  var s2 = 0, k = 0;
+  names.forEach(function(name, i){
+    if (i > 0 && poolOf(name) !== poolOf(names[i - 1])) { s2 += GAP; k = 0; }
+    var a = ((s2 + 0.5) / Math.max(1, slots)) * Math.PI * 2 - Math.PI / 2;
+    var R = two && (k % 2 === 1) ? R2 : R1;
+    var M = machines[name]; M.target.set(Math.cos(a) * R, 0, Math.sin(a) * R);
+    if (!M.placed){ M.pos.copy(M.target); M.placed = true; }
+    s2 += 1; k += 1;
+  });
+  view.fitR = R2 + PAD_W * 0.7;
+  view.fitDist = Math.max(36, view.fitR * (n > 4 ? 2.5 : 2.2) + 8);
+  view.maxDist = view.fitDist * 1.9;
+  if (view.mode === 'overview') fitView();
+  grid.scale.setScalar(Math.max(1, R2 / 10));
+  floor.scale.setScalar(Math.max(0.5, (R2 + 10) / 60) * 1.6);
+}
+
+function apply(S){
+  S = S || {};
+  lastState = S;
+  var ws = Array.isArray(S.workers) ? S.workers.filter(function(w){ return w && w.worker && !isReaper(w.worker) && w.machine; }) : [];
+  var mset = {};
+  (Array.isArray(S.machines) ? S.machines : []).forEach(function(m){ if (m && !isReaper(m)) mset[m] = true; });
+  ws.forEach(function(w){ mset[w.machine] = true; });
+
+  // machines appear / disappear
+  var changed = false;
+  Object.keys(mset).forEach(function(m){
+    if (!machines[m]){ createMachine(m); changed = true; if (!firstPoll) { shockwave(new THREE.Vector3(0,0.1,0), C_ONLINE, 4, 0.8); } }
+    else if (!machines[m].present){ machines[m].present = true; changed = true; }
+  });
+  Object.keys(machines).forEach(function(m){ if (!mset[m] && machines[m].present){ machines[m].present = false; changed = true; } });
+  if (changed) layoutMachines();
+
+  // workers
+  lastWorkerData = {};
+  var byM = {};
+  runComplete = num(S.total) > 0 && num(S.todo) === 0 && num(S.claimed) === 0 && num(S.done) >= num(S.total);
+  ws.forEach(function(w){ lastWorkerData[w.worker] = w; (byM[w.machine] = byM[w.machine] || []).push(w); });
+  Object.keys(workers).forEach(function(id){ if (!lastWorkerData[id]) workers[id].present = false; });
+  Object.keys(machines).forEach(function(m){
+    var M = machines[m]; var list = (byM[m] || []).slice().sort(function(a, b){ return String(a.worker).localeCompare(String(b.worker)); });
+    M.workerIds = list.map(function(w){ return w.worker; });
+    M.total = list.length;
+    M.aliveCount = list.filter(function(w){ return w.alive; }).length;
+    M.done = list.reduce(function(s, w){ return s + num(w.done); }, 0);
+    M.busy = list.filter(function(w){ return w.alive && w.tid; }).length;
+    // workers that exited cleanly because the run finished are not a dead machine
+    M.powerTarget = (M.total > 0 && M.aliveCount === 0 && !runComplete) ? 0 : 1;
+    var cols = Math.max(1, Math.ceil(Math.sqrt(list.length))), rows = Math.max(1, Math.ceil(list.length / cols));
+    var sp = Math.min(1.7, 4.3 / Math.max(cols, rows));
+    list.forEach(function(w, i){
+      var W = workers[w.worker] || createWorker(w.worker, m);
+      W.present = true; W.machine = m;
+      var c = i % cols, r = Math.floor(i / cols);
+      W.offset = new THREE.Vector3((c - (cols - 1) / 2) * sp, 0, (r - (rows - 1) / 2) * sp);
+      W.size = sp * 0.58;
+      W.alive = !!w.alive; W.step = w.step || 'idle'; W.busy = !!w.tid;
+      W.finished = !w.alive && runComplete;
+      W.targetColor.setHex(W.alive ? stepColor(W.step) : (W.finished ? C_FAINT : C_DEAD));
+    });
+    var off = M.total > 0 && M.aliveCount === 0;
+    var pool = poolOf(m), pc = poolColor(m);
+    var idText = pool != null ? m.split(':').slice(2).join(':') : m;
+    var badge = pool != null ? { text: pool, color: pc } : null;
+    var line2, dot, c1 = '#E8EEF7', c2 = '#8A97AD';
+    if (M.total === 0){ line2 = machineKind(m) + ' · no workers'; dot = '#4E5B72'; }
+    else if (off && runComplete){ line2 = 'FINISHED · ' + M.done + ' done'; dot = '#8A97AD'; c1 = '#8A97AD'; }
+    else if (off){ line2 = 'DOWN · ' + M.done + ' done'; dot = '#4E5B72'; c1 = '#8A97AD'; c2 = '#4E5B72'; }
+    else { line2 = M.aliveCount + '/' + M.total + ' alive · ' + M.done + ' done'; dot = M.busy ? '#5B8DEF' : '#4E5B72'; }
+    M.label.userData.set({ lines: [{ text: idText, font: 'mono', size: 14, weight: 500, color: c1 }, { text: line2, font: 'sans', size: 12, weight: 500, color: c2 }],
+      badge: badge, dot: dot, border: off && !runComplete ? '#172133' : '#22304A' });
+  });
+
+  // events
+  var evs = Array.isArray(S.events) ? S.events.slice() : [];
+  evs.sort(function(a, b){ return num(a.ts) - num(b.ts); });
+  var fresh = [];
+  evs.forEach(function(e){ if (!e) return; var k = evKey(e); if (!seenEvents.has(k)){ seenEvents.add(k); fresh.push(e); } });
+  if (seenEvents.size > 4000){ var keep = new Set(evs.map(evKey)); seenEvents = keep; }
+  if (firstPoll) fresh.slice(-12).forEach(function(e){ addLog(e); });
+  else fresh.forEach(function(e){ onEvent(e); addLog(e); });
+
+  // teleports
+  var tps = Array.isArray(S.teleports) ? S.teleports.filter(Boolean) : [];
+  tps.sort(function(a, b){ return num(a.ts) - num(b.ts); });
+  var newTps = [];
+  tps.forEach(function(t){ var k = tpKey(t); if (!seenTeleports.has(k)){ seenTeleports.add(k); newTps.push(t); } });
+  lastTeleports = tps;
+  if (newTps.length){ try { sessionStorage.setItem('tp_seen_teleports', JSON.stringify(Array.from(seenTeleports).slice(-300))); } catch (_) {} }
+  if (!firstPoll){
+    newTps.forEach(function(t){
+      pendingTeleports.push(t);
+      toast(tTag(I.portal, 'Teleport') + ' <span class="mono">' + esc(t.tid) + '</span> <span class="mono c-muted">' + esc(shortMachine(t.from_machine || '?')) + '</span>' +
+        I.arrow.replace('class="i"', 'class="i" style="width:13px;height:13px;color:var(--muted)"') + '<span class="mono">' + esc(shortMachine(t.machine || '?')) + '</span>', 'tp', 4200);
+    });
+  }
+  renderFeed(newTps.length && !firstPoll ? newTps.length : 0);
+
+  // KPIs
+  var total = num(S.total), done = num(S.done);
+  var pct = total ? Math.min(100, done / total * 100) : 0;
+  $('kDone').textContent = done; $('kTotal').textContent = total;
+  $('kBar').style.width = pct + '%'; $('kPct').textContent = Math.round(pct) + '%';
+  $('kFix').textContent = num(S.fixes); $('kFlag').textContent = num(S.flags);
+  $('kTp').textContent = num(S.teleported); $('kRe').textContent = num(S.reassigned);
+  $('kDup').textContent = num(S.duplicates_prevented);
+  var lost = num(S.lost);
+  $('kLost').className = 'v ' + (lost ? 'c-danger' : 'c-success');
+  $('kLost').innerHTML = lost ? I.alert + lost : I.check + '0';
+  var alive = ws.filter(function(w){ return w.alive; }).length;
+  $('kAlive').innerHTML = alive + '<small>/ ' + ws.length + '</small>';
+  renderTop(S);
+  if (!modeInit){ modeInit = true; if (!$('newMachine').value) $('newMachine').value = S.mode === 'archil' ? 'B' : 'laptop-C'; }
+  var pl = S.plan && typeof S.plan === 'object' ? S.plan : null, rn = S.run && typeof S.run === 'object' ? S.run : null;
+  diskMeta.id = String(S.disk_id || S.disk || (rn && (rn.disk_id || rn.disk)) || (pl && (pl.disk_id || pl.disk)) || '');
+  diskMeta.entity = pl && pl.entity ? String(pl.entity) + ' · ' + num(pl.records || pl.n || pl.total || total) + ' records' : '';
+  setDiskProgress(total ? done / total : 0);
+  setDiskLabel(done, total);
+  renderSel();
+  firstPoll = false;
+}
+
+function renderTop(S){
+  var rp = $('runPill');
+  if (!S){ rp.className = 'pill off'; rp.innerHTML = '<span class="dot"></span>Disconnected'; return; }
+  var running = (num(S.todo) + num(S.claimed)) > 0;
+  rp.className = 'pill ' + (running ? 'run' : 'done');
+  rp.innerHTML = running ? '<span class="dot pulse"></span>Running' : I.check + 'Complete';
+  $('modeChip').textContent = (S.mode === 'archil' ? 'Archil' : 'Local') + ' · ' + (S.country || '—');
+}
+var lastOk = 0;
+function tickClock(){
+  if (!lastOk){ $('clock').textContent = ''; return; }
+  var s = Math.round((Date.now() - lastOk) / 1000);
+  $('clock').textContent = 'updated ' + (s <= 1 ? 'just now' : s + 's ago');
+  $('clock').style.color = s > 5 ? 'var(--warning)' : '';
+}
+setInterval(tickClock, 500);
+
+function onEvent(e){
+  var m = e.machine;
+  switch (e.type){
+    case 'reassigned': {
+      var src = e.from_machine || machineOfWorker(e.from_worker);
+      if (src && machines[src]){
+        flashMachine(src, C_AMBER, 1.3);
+        shockwave(new THREE.Vector3(machines[src].pos.x, 0.5, machines[src].pos.z), C_AMBER, 4, 1.1);
+      }
+      toast(tTag(I.clock, 'Lease expired') + ' <span class="mono">' + esc(e.tid || '') + '</span> on <span class="mono">' + esc(shortMachine(src || '?')) + '</span> <span class="c-muted">· requeued</span>', 'warn', 3000);
+      break;
+    }
+    case 'claim': if (machines[m]) { flashMachine(m, C_ONLINE, 0.3); packet(m, false, C_ONLINE); } break;
+    case 'done': if (machines[m]) { flashMachine(m, C_GREEN, 0.35); packet(m, true, C_GREEN); } break;
+    case 'fix': if (machines[m]) { flashMachine(m, C_GREEN, 0.7); } break;
+    case 'flag': if (machines[m]) flashMachine(m, C_AMBER, 0.5); break;
+    case 'duplicate_prevented': if (machines[m]) { flashMachine(m, C_FETCH, 0.8); shockwave(new THREE.Vector3(machines[m].pos.x, 0.5, machines[m].pos.z), C_FETCH, 3, 0.7); } break;
+    case 'error': if (machines[m]) flashMachine(m, C_OFF, 0.6); break;
+    case 'start': if (machines[m]) shockwave(new THREE.Vector3(machines[m].pos.x, 0.5, machines[m].pos.z), C_ONLINE, 3.2, 0.9); break;
+  }
+}
+
+var EV_COL = { claim:'#8A97AD', done:'#E8EEF7', fix:'#E8EEF7', flag:'#8A97AD', reassigned:'#E8EEF7', resume:'#5B8DEF', duplicate_prevented:'#8A97AD', error:'#B8C4D6', start:'#8A97AD', exit:'#4E5B72', kill:'#B8C4D6' };
+var EV_NAME = { duplicate_prevented: 'dup-block', reassigned: 'lease-exp', resume: 'teleport' };
+function addLog(e){
+  if (!e || e.type === 'step') return;
+  var t = new Date(num(e.ts) * 1000);
+  var ts = isNaN(t) ? '' : t.toTimeString().slice(0, 8);
+  var who = isReaper(e.worker) ? 'reaper' : shortMachine(e.machine || '');
+  var extra = e.type === 'resume' ? (esc(shortMachine(e.from_machine || '?')) + ' → ' + esc(shortMachine(e.machine || '?'))) :
+              e.type === 'reassigned' ? ('from ' + esc(shortMachine(e.from_machine || '?'))) : esc(who);
+  logLines.push('<div><span class="t">' + ts + '</span> <span class="ty" style="color:' + (EV_COL[e.type] || '#8A97AD') + '">' + esc(EV_NAME[e.type] || e.type) + '</span> <span style="color:var(--text)">' + esc(e.tid || '') + '</span> ' + extra + '</div>');
+  if (logLines.length > 9) logLines = logLines.slice(-9);
+  $('logList').innerHTML = logLines.slice().reverse().join('');
+}
+
+function ago(ts){ var s = Math.max(0, Date.now() / 1000 - num(ts)); return s < 60 ? Math.round(s) + 's ago' : s < 3600 ? Math.round(s / 60) + 'm ago' : Math.round(s / 3600) + 'h ago'; }
+var lastFeedHtml = '';
+function renderFeed(nFresh){
+  $('replay').disabled = !lastTeleports.length;
+  var list = lastTeleports.slice(-1);  // the full history lives in the Teleports tab
+  var h;
+  if (!list.length){
+    h = '<div class="empty" style="padding:8px 10px">No teleports yet. Click a machine and kill it mid-task.</div>';
+  } else {
+    h = list.map(function(t, i){
+      var sk = (t.skipped && t.skipped.length) ? '<span class="lbl">skipped</span>' + t.skipped.map(function(s){ return stepChip(s); }).join('') : '<span class="lbl">resumed from start</span>';
+      return '<div class="tp' + (i < nFresh ? ' fresh' : '') + '"><div class="a"><span class="tid">' + esc(t.tid) + '</span><span class="when">' + ago(t.ts) + '</span></div>' +
+        '<div class="route"><span class="from" title="' + esc(t.from_machine || '') + '">' + esc(shortMachine(t.from_machine || '?')) + '</span>' + I.arrow +
+        '<span title="' + esc(t.machine || '') + '">' + esc(shortMachine(t.machine || '?')) + '</span></div><div class="sk">' + sk + '</div></div>';
+    }).join('');
+  }
+  if (!nFresh && h === lastFeedHtml) return;
+  lastFeedHtml = h;
+  /* the teleport list lives in the Teleports tab */
+}
+
+// ---------- polling ----------
+function setConn(ok){ if (ok) lastOk = Date.now(); else if (!lastOk || Date.now() - lastOk > 5000) renderTop(null); }
+var polling = false;
+function poll(){
+  if (polling) return; polling = true;
+  var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var to = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 4000);
+  fetch('/api/state', { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(S){ setConn(true); try { apply(S); } catch (err) { console.error('apply failed', err); }
+      try { sessionStorage.setItem('tp_state', JSON.stringify(S)); } catch (_) {} })
+    .catch(function(){ setConn(false); })
+    .then(function(){ clearTimeout(to); polling = false; });
+}
+renderSel(); renderFeed(0);
+// persist across tab switches: seen teleports + last snapshot (shared 'tp_state' key with the Overview page)
+try { var seenRaw = sessionStorage.getItem('tp_seen_teleports'); if (seenRaw) JSON.parse(seenRaw).forEach(function(k){ seenTeleports.add(k); }); } catch (_) {}
+try { var cached = sessionStorage.getItem('tp_state'); if (cached) apply(JSON.parse(cached)); } catch (err) { console.warn('cached state ignored', err); }
+poll(); setInterval(poll, 1000);
+
+// ---------- animation loop ----------
+function resize(){
+  var w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h);
+  // shift the scene's centre down a little so it sits below the KPI strip
+  var shift = Math.round(Math.min(70, h * 0.06));
+  camera.setViewOffset(w, h, 0, -shift, w, h);
+  camera.updateProjectionMatrix();
+  pxToWorld = 2 * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, h);
+  rescaleLabels();
+}
+window.addEventListener('resize', resize); resize();
+
+var clock = new THREE.Clock(), tpCooldown = 0;
+var tmpC = new THREE.Color(), cDanger = new THREE.Color(C_DANGER), cEdge = new THREE.Color(T_BSTRONG), cAccent = new THREE.Color(C_ACCENT), cSuccess = new THREE.Color(C_SUCCESS), tmpV = new THREE.Vector3();
+function frame(){
+  requestAnimationFrame(frame);
+  var dt = Math.min(0.05, clock.getDelta()), T = clock.elapsedTime;
+
+  // camera
+  var nowMs = performance.now();
+  if (view.followUntil && nowMs > view.followUntil && !pendingTeleports.length){
+    view.followUntil = 0;
+    if (view.followReturn){ var R0 = view.followReturn; goal.theta = nearestAngle(R0.theta, cam.theta); goal.phi = R0.phi; goal.dist = R0.dist; goal.target.copy(R0.target); view.mode = R0.mode; view.followReturn = null; }
+  }
+  // gentle auto-rotate only in overview, when nobody has touched the camera for 20s
+  if (nowMs - view.lastInteract > 20000 && !drag && view.mode === 'overview' && !view.followUntil) goal.theta += dt * 0.04;
+  var ease = 1 - Math.exp(-dt * 7.5);
+  cam.theta += (goal.theta - cam.theta) * ease; cam.phi += (goal.phi - cam.phi) * ease;
+  cam.dist += (goal.dist - cam.dist) * ease; cam.target.lerp(goal.target, ease);
+  camera.position.set(
+    cam.target.x + cam.dist * Math.sin(cam.phi) * Math.cos(cam.theta),
+    cam.target.y + cam.dist * Math.cos(cam.phi),
+    cam.target.z + cam.dist * Math.sin(cam.phi) * Math.sin(cam.theta));
+  camera.lookAt(cam.target);
+
+  // teleport queue (stagger simultaneous ones)
+  tpCooldown -= dt;
+  if (pendingTeleports.length && tpCooldown <= 0){ launchTeleport(pendingTeleports.shift()); tpCooldown = 0.45; }
+
+  // machines
+  Object.keys(machines).forEach(function(name){
+    var M = machines[name];
+    M.pos.lerp(M.target, Math.min(1, dt * 3));
+    M.group.position.copy(M.pos);
+    // face the disk so the LED strip points inward
+    M.group.rotation.y = Math.atan2(M.pos.x, M.pos.z);
+    M.led.position.set(0, PAD_H * 0.55 + 0.06, -PAD_W / 2 - 0.011);
+    M.fade += ((M.present ? 1 : 0) - M.fade) * Math.min(1, dt * 2);
+    if (!M.present && M.fade < 0.03){ removeMachine(M); return; }
+    M.power += (M.powerTarget - M.power) * Math.min(1, dt * 2);
+    var p = M.power;
+    // calm: edges in --border-strong; accent only when selected; muted danger when down; brief gold outline on lease expiry
+    var isSel = selected === name, isHov = hovered === name;
+    var base = tmpC.copy(isSel ? cAccent : cEdge);
+    if (isHov && !isSel) base.lerp(cAccent, 0.35);
+    var flashK = 0;
+    if (M.flashT > 0){ flashK = Math.min(1, M.flashT); M.flashT -= dt * 1.6; }
+    var col = base.clone(); if (M.flash && flashK > 0) col.lerp(M.flash, flashK * 0.85);
+    M.edgeMat.color.copy(col); M.edgeMat.opacity = Math.max(p, flashK) * (0.9 + 0.1 * flashK) * M.fade;
+    M.dashMat.opacity = (1 - p) * (1 - flashK) * 0.55 * M.fade;
+    M.insetMat.color.copy(col); M.insetMat.opacity = (0.25 + 0.35 * flashK) * M.fade;
+    M.haloMat.opacity = 0;
+    M.topMat.color.copy(col); M.topMat.opacity = (0.02 + 0.06 * flashK) * M.fade;
+    M.ledMat.color.copy(M.busy && p > 0.5 ? cAccent : cEdge); M.ledMat.opacity = (p > 0.5 ? 0.8 : 0.3) * M.fade;
+    M.padMat.emissive.setHex(0x000000);
+    M.padMat.opacity = M.fade; M.plinth.material.opacity = M.fade;
+    M.flashGlow.material.opacity = 0;
+    M.label.material.opacity = M.fade * (0.6 + 0.4 * p);
+    M.selRing.material.opacity = isSel ? 0.7 : (isHov ? 0.2 : 0);
+    var la = M.link.geometry.attributes.position.array;
+    tmpV.set(M.pos.x, 0, M.pos.z); var len = tmpV.length() || 1; tmpV.multiplyScalar(1 / len);
+    la[0] = M.pos.x - tmpV.x * (PAD_W / 2 + 0.2); la[1] = 0.02; la[2] = M.pos.z - tmpV.z * (PAD_W / 2 + 0.2);
+    la[3] = tmpV.x * 2.6; la[4] = 0.02; la[5] = tmpV.z * 2.6;
+    M.link.geometry.attributes.position.needsUpdate = true;
+    M.link.material.opacity = (0.35 + 0.35 * p) * M.fade;
+    M.link.material.color.copy(cEdge);
+  });
+
+  // workers
+  Object.keys(workers).forEach(function(id){
+    var W = workers[id], M = machines[W.machine];
+    W.fade += ((W.present && M ? 1 : 0) - W.fade) * Math.min(1, dt * 2.5);
+    if (W.fade < 0.03 && (!W.present || !M)){ removeWorker(W); return; }
+    if (!M) return;
+    W.sink += ((W.alive ? 0 : 1) - W.sink) * Math.min(1, dt * 1.5);
+    var off = W.offset || new THREE.Vector3();
+    var bob = W.alive && W.busy ? Math.sin(T * 1.6 + W.phase) * 0.04 : 0;
+    var s = W.size * (1 - 0.3 * W.sink);
+    var cs = Math.cos(M.group.rotation.y), sn = Math.sin(M.group.rotation.y);
+    var ox = off.x * cs + off.z * sn, oz = -off.x * sn + off.z * cs;
+    W.target.set(M.pos.x + ox, PAD_H + 0.06 + s / 2 + 0.16 * (1 - W.sink) + bob - W.sink * s * 0.45, M.pos.z + oz);
+    if (!W.placed){ W.pos.copy(W.target); W.placed = true; W.pos.y += 3; }
+    W.pos.lerp(W.target, Math.min(1, dt * 6));
+    W.mesh.position.copy(W.pos);
+    W.mesh.scale.set(s, s * (W.busy && W.alive ? 1.2 : 1), s);
+    W.mesh.rotation.y = W.alive && W.busy ? T * 0.35 + W.phase : W.mesh.rotation.y;
+    W.color.lerp(W.targetColor, Math.min(1, dt * 5));
+    W.mat.emissive.copy(W.color);
+    W.mat.emissiveIntensity = W.alive ? (W.step === 'idle' ? 0.25 : 0.42) : 0.12;
+    W.mat.color.copy(W.color).multiplyScalar(W.alive ? 0.55 : 0.35);
+    W.mat.opacity = W.fade;
+    W.wedges.material.opacity = (W.alive ? 0.14 : 0.05) * W.fade;
+    W.glow.position.set(W.pos.x, W.pos.y, W.pos.z);
+    W.glow.material.color.copy(W.color);
+    var gs = s * (W.alive ? (W.step === 'idle' ? 1.8 : 2.8) : 0.1);
+    W.glow.scale.set(gs, gs, 1);
+    W.glow.material.opacity = 0;
+  });
+
+  // effects
+  for (var i = effects.length - 1; i >= 0; i--){
+    var fx = effects[i]; fx.t += dt; var k = Math.min(1, fx.t / fx.dur);
+    try { fx.update(k, fx.t); } catch (err) { console.error('effect failed', err); k = 1; }
+    if (k >= 1){ fx.dispose(); effects.splice(i, 1); }
+  }
+
+  
+  // glowing tip at the leading end of the progress ring
+  if (ringFrac > 0 && ringFrac < 1){
+    var ang = Math.PI / 2 + ringFrac * Math.PI * 2; // matches ring orientation
+    diskRingGlow.position.set(RING_R * Math.cos(ang), 0.08, RING_R * Math.sin(ang));
+    diskRingGlow.material.opacity = 0;
+  } else diskRingGlow.material.opacity = 0;
+  renderer.render(scene, camera);
+}
+frame();
+window.__teleport3d = { effects: effects, replay: function(){ $('replay').click(); } };
+})();
+</script>
+</body>
+</html>

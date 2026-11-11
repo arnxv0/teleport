@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teleport · Teleports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04070D;--surface:#0A0F1A;--surface-2:#0E1522;--border:#172133;--border-strong:#22304A;
+  --text:#E8EEF7;--muted:#8A97AD;--faint:#4E5B72;
+  --accent:#5B8DEF;--success:#E8EEF7;--warning:#8A97AD;--danger:#B8C4D6;
+  --accent-t:rgba(91,141,239,.12);--success-t:rgba(232,238,247,.12);--warning-t:rgba(138,151,173,.12);--faint-t:rgba(78,91,114,.16);
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{background:radial-gradient(1200px 600px at 50% -10%,#0B1426 0%,rgba(4,7,13,0) 70%),var(--bg);background-attachment:fixed}
+body{font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+.mono{font-family:var(--mono)}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* top bar (identical to Overview) */
+.top{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 24px;position:sticky;top:0;z-index:10;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:10px;white-space:nowrap;min-width:0;flex:none}
+.brand .name{font-weight:600;font-size:16px;letter-spacing:-.01em}
+.brand .sub{color:var(--muted);font-size:13px;padding-left:10px;border-left:1px solid var(--border)}
+@media(max-width:1379px){.brand .sub{display:none}}
+.nav{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.nav a{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:7px;color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;white-space:nowrap;border:1px solid transparent;transition:color .12s,background .12s}
+.nav a svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.nav a:hover{color:var(--text)}
+.nav a.on{background:var(--surface-2);color:var(--text);border-color:var(--border-strong)}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap;flex:none}
+@media(max-width:1279px){.top .clock{display:none}}
+@media(max-width:600px){.nav{display:none}.chipmode{display:none}}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid var(--border);color:var(--muted);background:var(--surface-2);white-space:nowrap}
+.pill.run{color:var(--success);border-color:rgba(232,238,247,.3);background:var(--success-t)}
+.pill.done{color:var(--accent);border-color:rgba(91,141,239,.3);background:var(--accent-t)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.clock{color:var(--faint);font-size:12px;font-family:var(--mono);min-width:110px;text-align:right}
+
+main{max-width:1760px;margin:0 auto;padding:36px 32px 56px;display:grid;gap:28px}
+
+/* title */
+.ttl h1{margin:0;font-size:40px;line-height:1.1;font-weight:600;letter-spacing:-.025em}
+.ttl p{margin:10px 0 0;font-size:16px;color:var(--muted);max-width:760px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 24px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.stat .l{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .v{font-size:40px;line-height:1.1;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:18px;color:var(--faint);font-weight:500;margin-left:4px;letter-spacing:0}
+.stat .s{font-size:13px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat.acc .v{color:var(--accent)}
+@media(min-width:1800px){.stat .v{font-size:48px}}
+@media(max-width:800px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* panes */
+.panes{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:16px;align-items:stretch}
+@media(max-width:1000px){.panes{grid-template-columns:minmax(0,1fr)}.listwrap{min-height:260px}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;min-width:0}
+.card-h{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);min-height:60px}
+.card-h h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em}
+.card-h .hint{color:var(--faint);font-size:12px;margin-left:auto;white-space:nowrap}
+.count{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:0 7px;line-height:18px}
+.lcard{display:flex;flex-direction:column}
+.listwrap{position:relative;flex:1;min-height:420px}
+.list{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:8px}
+.list::-webkit-scrollbar,.tlscroll::-webkit-scrollbar{width:10px;height:10px}
+.list::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:999px;border:3px solid var(--surface)}
+.it{display:grid;gap:6px;padding:14px 14px 14px 16px;border-radius:10px;border:1px solid transparent;cursor:pointer;position:relative;outline:none}
+.it+.it{margin-top:2px}
+.it:hover{background:rgba(14,21,34,.6)}
+.it.on{background:var(--surface-2);border-color:var(--border-strong)}
+.it.on::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;background:var(--accent)}
+.it .r1{display:flex;align-items:center;gap:8px;min-width:0}
+.it .tid{font-family:var(--mono);font-size:13px;font-weight:500}
+.it .when{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+.it .nm{font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .r3{display:flex;align-items:center;gap:10px;min-width:0}
+.route{display:flex;align-items:center;gap:6px;min-width:0;font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden}
+.route .m{color:var(--text);overflow:hidden;text-overflow:ellipsis}
+.route .m.dead{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
+.route svg{width:13px;height:13px;color:var(--accent);flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.it .rec{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.newdot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-t)}
+.ob{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap;border:1px solid var(--border-strong);color:var(--muted)}
+.ob.fix{color:var(--text);border-color:rgba(232,238,247,.45)}
+.ob.flag{color:var(--muted);border-color:rgba(138,151,173,.5)}
+.ob.run{color:var(--accent);border-color:rgba(91,141,239,.45)}
+
+/* journey */
+.jcard{display:flex;flex-direction:column;min-width:0}
+.jh{padding:22px 28px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:16px}
+.jh .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:500;display:flex;align-items:center;gap:8px}
+.jh .k .mono{text-transform:none;letter-spacing:0;color:var(--text)}
+.jh h3{margin:6px 0 0;font-size:22px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+.jh .rt{margin-left:auto;text-align:right;flex:none}
+.jh .rt .big{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.1}
+.jh .rt .big small{font-size:14px;color:var(--faint);font-weight:500;margin-left:2px}
+.jh .rt .lab{font-size:12px;color:var(--faint)}
+.sec{padding:22px 28px;border-bottom:1px solid var(--border)}
+.sec:last-child{border-bottom:0}
+.sech{display:flex;align-items:center;gap:10px;margin-bottom:14px;min-height:30px}
+.sech .t{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.sech .x{font-size:12px;color:var(--faint)}
+.zc{margin-left:auto;display:flex;align-items:center;gap:6px}
+.zc button{font:500 12px/1 var(--sans);height:30px;min-width:30px;padding:0 10px;border-radius:7px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.zc button:hover{border-color:var(--faint);background:#121B2C}
+.zc button.acc{color:var(--accent);border-color:rgba(91,141,239,.45);background:var(--accent-t)}
+.zc button.acc:hover{background:rgba(91,141,239,.2)}
+.zc .zl{font-family:var(--mono);font-size:11px;color:var(--faint);min-width:44px;text-align:right}
+.tl{position:relative;user-select:none;-webkit-user-select:none;cursor:grab;touch-action:pan-y}
+.tl.drag{cursor:grabbing}
+.tl svg{display:block;width:100%}
+.tl text{font-family:var(--mono)}
+.tlhelp{margin-top:10px;font-size:12px;color:var(--faint)}
+.tlhelp kbd{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--border-strong);border-radius:4px;padding:0 5px;background:var(--surface-2)}
+
+/* pipeline */
+.pipe{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.ps{position:relative;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:grid;gap:10px;min-width:0;background:var(--bg)}
+.ps .sn{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.ps .sn .n{font-family:var(--mono);font-size:11px;color:var(--faint);font-weight:500}
+.ps .nt{font-size:12px;color:var(--faint);line-height:1.35;min-height:16px}
+.ps.carried{border-style:dashed;border-color:rgba(232,238,247,.35)}
+.ps.carried .nt{color:var(--muted)}
+.ps.commit{border-color:rgba(91,141,239,.5);background:linear-gradient(180deg,rgba(91,141,239,.08),rgba(91,141,239,0))}
+.ps.commit .sn{color:var(--accent)}
+.ps.pend{opacity:.5}
+.ps.edge::before{content:"teleport";position:absolute;left:-10px;top:-9px;transform:translateX(-50%);font:500 10px/16px var(--mono);color:var(--accent);background:var(--surface);padding:0 6px;border:1px solid rgba(91,141,239,.45);border-radius:999px;letter-spacing:.02em}
+.ps.edge::after{content:"";position:absolute;left:-6px;top:10px;bottom:10px;width:2px;background:var(--accent);border-radius:2px}
+.mc{display:inline-flex;align-items:center;gap:6px;max-width:100%;height:24px;padding:0 9px;border-radius:6px;font-family:var(--mono);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;justify-self:start}
+.mc span{overflow:hidden;text-overflow:ellipsis}
+.mc.dead{border:1px dashed rgba(232,238,247,.6);color:var(--text)}
+.mc.fin{background:rgba(138,151,173,.16);border:1px solid var(--border-strong);color:var(--text)}
+.mc.run{border:1px solid rgba(91,141,239,.5);color:var(--accent)}
+.mc.none{border:1px solid var(--border);color:var(--faint)}
+.mc svg{width:11px;height:11px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+/* outcome */
+.oc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center}
+.oc .sum{font-size:17px;line-height:1.55;color:var(--text);max-width:900px}
+.oc .sum.none{color:var(--faint)}
+.oc .side{display:flex;align-items:center;gap:20px}
+.oc .n{display:flex;flex-direction:column;align-items:flex-end}
+.oc .n b{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.oc .n span{font-size:12px;color:var(--faint)}
+.lnk{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--border-strong);text-decoration:none;font-size:13px;font-weight:500;color:var(--text);white-space:nowrap}
+.lnk:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:1200px){.oc{grid-template-columns:minmax(0,1fr)}.oc .side{justify-content:flex-start}}
+
+/* empty */
+.emptyp{grid-column:1/-1;padding:72px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
+.emptyp h3{margin:8px 0 0;font-size:24px;font-weight:600;letter-spacing:-.015em}
+.emptyp p{margin:0;font-size:15px;color:var(--muted);max-width:560px}
+.emptyp .hint{font-size:13px;color:var(--faint);display:flex;align-items:center;gap:8px;margin-top:6px}
+.emptyp .hint a{color:var(--text);text-decoration:none;border-bottom:1px solid var(--border-strong)}
+.emptyp .hint a:hover{border-color:var(--accent)}
+.jempty{padding:60px 28px;color:var(--faint);text-align:center}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="12" height="12" rx="3.5" stroke="#5B8DEF" stroke-width="1.8" opacity=".55"/>
+      <rect x="9" y="9" width="12" height="12" rx="3.5" stroke="#5B8DEF" stroke-width="1.8" fill="rgba(91,141,239,.18)"/>
+    </svg>
+    <span class="name">Teleport</span>
+    <span class="sub">Agent swarm · verified public-data cleaning</span>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <a href="/"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Overview</a>
+    <a href="/3d"><svg viewBox="0 0 24 24"><path d="M12 2.8 20 7.4v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/></svg>Swarm 3D</a>
+    <a href="/teleports" class="on" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><path d="M8.5 19H17a3.5 3.5 0 0 0 0-7H7a3.5 3.5 0 0 1 0-7h8.5"/><circle cx="18" cy="5" r="2.5"/></svg>Teleports</a>
+    <a href="/connect"><svg viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/></svg>Connect</a>
+  </nav>
+  <div class="right">
+    <span class="pill" id="hdrPill"><span class="dot"></span>Connecting</span>
+    <span class="pill chipmode" id="hdrMode">—</span>
+    <span class="clock" id="hdrClock"></span>
+    <!-- legacy per-page header targets, kept hidden so page scripts keep working; header.js owns the visible ones -->
+    <span hidden><span id="runPill"></span><span id="modeChip"></span><span id="clock"></span></span>
+  </div>
+  <script src="/header.js"></script>
+</header>
+
+<main>
+  <section class="ttl">
+    <h1>Teleports</h1>
+    <p>Every task that survived a machine dying — where it ran, where it died, and where it finished.</p>
+  </section>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="panes" id="panes">
+    <div class="card lcard" id="listCard">
+      <div class="card-h"><h2>Teleported tasks</h2><span class="count" id="nItems">0</span><span class="hint">newest first · ↑ ↓</span></div>
+      <div class="listwrap"><div class="list" id="list" role="listbox" aria-label="Teleported tasks"></div></div>
+    </div>
+    <div class="card jcard" id="journey"></div>
+    <div class="card emptyp" id="emptyP" hidden></div>
+  </section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sig={};
+const setHTML=(key,el,html)=>{if(sig[key]===html)return false;sig[key]=html;el.innerHTML=html;return true};
+const hms=ts=>new Date(ts*1000).toLocaleTimeString([], {hour12:false});
+const I={
+  arrow:'<svg class="i" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  check:'<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  ext:'<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+};
+const STEPS=['probe','search','fetch','judge','commit'];
+
+/* ---------- header (same behaviour as Overview) ---------- */
+let S=null, lastOk=0;
+const STARTING=['planning','ingesting','launching'];
+function norm(x){x=x||{};for(const k of ['total','todo','claimed'])x[k]=+x[k]||0;x.run=x.run||null;return x}
+const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}}};
+async function pollState(){try{const r=await fetch('/api/state');const txt=await r.text();S=norm(JSON.parse(txt));ss.set('tp_state',txt);lastOk=Date.now();renderTop()}catch(e){}setTimeout(pollState,2000)}
+function renderTop(){
+  const ph=(S.run&&S.run.phase)||'idle', rp=$('runPill');
+  if(STARTING.includes(ph)){rp.className='pill run';rp.innerHTML='<span class="dot pulse"></span>Starting'}
+  else if(ph==='failed'){rp.className='pill';rp.innerHTML='<span class="dot"></span>Failed'}
+  else if(!S.total){rp.className='pill';rp.innerHTML='<span class="dot"></span>Ready'}
+  else{const running=(S.todo+S.claimed)>0;rp.className='pill '+(running?'run':'done');
+    rp.innerHTML=running?'<span class="dot pulse"></span>Running':I.check+'Complete'}
+  const tail=S.country||(S.run&&S.run.id?S.run.id:'');
+  $('modeChip').textContent=`${S.mode==='archil'?'Archil':'Local'}${tail?' · '+tail:''}`;
+}
+function tick(){
+  if(!lastOk){$('clock').textContent='';return}
+  const s=Math.round((Date.now()-lastOk)/1000);
+  $('clock').textContent=new Date().toLocaleTimeString([], {hour12:false})+' · '+(s<=2?'live':s+'s ago');
+  $('clock').style.color=s>6?'var(--warning)':'';
+}
+
+/* ---------- data ---------- */
+let D=null, sel=null, seen=null, fresh=new Set();
+const shortM=m=>{const p=String(m??'?').split(':');return p.length>=3?p.slice(1).join(':'):String(m??'?')};
+const byTid=tid=>D&&D.items.find(i=>i.tid===tid);
+
+async function pollTele(){
+  try{const r=await fetch('/api/teleports');const txt=await r.text();ingest(JSON.parse(txt));ss.set('tp_teleports',txt)}catch(e){}
+  setTimeout(pollTele,2000);
+}
+function ingest(d){
+    d.summary=d.summary||{};d.items=Array.isArray(d.items)?d.items:[];
+    for(const it of d.items){it.hops=Array.isArray(it.hops)?it.hops:[];it.resumes=Array.isArray(it.resumes)?it.resumes:[];
+      it.lease_expired=Array.isArray(it.lease_expired)?it.lease_expired:[];it.skipped=Array.isArray(it.skipped)?it.skipped:[]}
+    D=d;
+    if(seen===null)seen=new Set(D.items.map(i=>i.tid));
+    else for(const i of D.items)if(!seen.has(i.tid)){seen.add(i.tid);if(sel)fresh.add(i.tid)}
+    if(!sel||!byTid(sel))sel=D.items.length?D.items[0].tid:null;
+    fresh.delete(sel);ss.set('tp_sel',sel||'');
+    render();
+}
+
+function render(){renderStats();renderList();renderJourney()}
+
+function renderStats(){
+  const s=D.summary, n=v=>v==null?'—':v;
+  const card=(l,v,sub,cls='')=>`<div class="stat ${cls}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  const med=s.median_recovery_s;
+  setHTML('stats',$('stats'),
+    card('Teleports',esc(n(s.teleports)),'tasks resumed on another machine','acc')+
+    card('Steps saved',esc(n(s.steps_saved)),'work not redone')+
+    card('Median recovery',med==null?'—':esc((+med).toFixed(1))+'<small>s</small>','lease expiry → resumed')+
+    card('Machines lost',esc(n(s.machines_lost)),'killed mid-task'));
+}
+
+function outcomeBadge(it){
+  if(!it.outcome)return '<span class="ob run">running</span>';
+  const f=+it.outcome.fixes||0, g=+it.outcome.flags||0;
+  if(f)return `<span class="ob fix">${f} fix${f>1?'es':''}</span>`;
+  if(g)return `<span class="ob flag">${g>1?g+' flags':'flag'}</span>`;
+  return '<span class="ob">clean</span>';
+}
+function routeHTML(it){
+  const parts=it.hops.map(h=>`<span class="m${h.ended==='killed'?' dead':''}">${esc(shortM(h.machine))}</span>`);
+  return parts.join(I.arrow.replace('class="i"',''));
+}
+
+function renderList(){
+  const empty=!D.items.length;
+  $('emptyP').hidden=!empty;$('listCard').hidden=empty;$('journey').hidden=empty;
+  $('nItems').textContent=D.items.length;
+  if(empty){renderEmpty();return}
+  const html=D.items.map(it=>`<div class="it${it.tid===sel?' on':''}" role="option" aria-selected="${it.tid===sel}" data-tid="${esc(it.tid)}">
+    <div class="r1"><span class="tid">${esc(it.tid)}</span>${fresh.has(it.tid)?'<span class="newdot" title="New teleport"></span>':''}<span class="when">${esc(hms(it.last_ts))}</span></div>
+    <div class="nm" title="${esc(it.name||'')}">${esc(it.name||'Untitled record')}</div>
+    <div class="r3"><span class="route">${routeHTML(it)}</span><span class="rec">${it.recovery_s!=null?esc((+it.recovery_s).toFixed(1))+'s':'—'}</span>${outcomeBadge(it)}</div>
+  </div>`).join('');
+  setHTML('list',$('list'),html);
+}
+function select(tid,scroll){
+  if(!tid||tid===sel)return;sel=tid;ss.set('tp_sel',tid);fresh.delete(tid);renderList();renderJourney();
+  if(scroll){const el=$('list').querySelector(`[data-tid="${CSS.escape(tid)}"]`);if(el)el.scrollIntoView({block:'nearest'})}
+}
+$('list').addEventListener('click',e=>{const el=e.target.closest('.it');if(el)select(el.dataset.tid)});
+document.addEventListener('keydown',e=>{
+  if(!D||!D.items.length||(e.target.closest&&e.target.closest('input,textarea')))return;
+  if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
+  e.preventDefault();
+  const i=D.items.findIndex(x=>x.tid===sel), j=Math.max(0,Math.min(D.items.length-1,i+(e.key==='ArrowDown'?1:-1)));
+  select(D.items[j].tid,true);
+});
+
+function renderEmpty(){
+  setHTML('empty',$('emptyP'),`
+  <svg width="340" height="120" viewBox="0 0 340 120" fill="none" aria-hidden="true" style="max-width:100%">
+    <rect x="10" y="22" width="92" height="56" rx="10" stroke="#22304A" stroke-dasharray="4 4"/>
+    <text x="56" y="47" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#8A97AD">machine A</text>
+    <path d="M46 58l20 0" stroke="#4E5B72" stroke-width="1.5"/><path d="M50 54l12 8M62 54l-12 8" stroke="#E8EEF7" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+    <rect x="238" y="22" width="92" height="56" rx="10" stroke="#22304A" fill="#0E1522"/>
+    <text x="284" y="47" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#E8EEF7">machine B</text>
+    <rect x="270" y="56" width="28" height="6" rx="3" fill="#8A97AD" opacity=".35"/>
+    <ellipse cx="170" cy="92" rx="24" ry="7" stroke="#4E5B72"/><path d="M146 92v14c0 4 11 7 24 7s24-3 24-7V92" stroke="#4E5B72"/>
+    <text x="170" y="76" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4E5B72">checkpoint</text>
+    <path d="M104 50C150 50 150 50 160 50S200 50 230 50" stroke="#5B8DEF" stroke-width="1.6" stroke-dasharray="3 4"/>
+    <path d="M226 45l7 5-7 5" stroke="#5B8DEF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <h3>No teleports yet</h3>
+  <p>When a machine dies mid-task, its lease expires and the task is requeued. A worker on another machine resumes it from the last per-step checkpoint on the shared disk — each of those journeys shows up here.</p>
+  <div class="hint">Kill machines from <a href="/">Overview</a> or <a href="/3d">Swarm 3D</a> to see one.</div>`);
+}
+
+/* ---------- journey ---------- */
+const Z={};            // tid -> {v0,v1} visible window
+let jsig='', jW=0;
+const LBL=210, RPAD=130, LANE=76, GAP=36, TOP=58, BOT=40, MINW=62;
+
+function extent(it){
+  const t0=it.first_ts, t1=Math.max(it.last_ts, ...it.hops.map(h=>h.end_ts||0));
+  return [t0,t1];
+}
+function fitWin(it){const [a,b]=extent(it);const p=Math.max(.4,(b-a)*.03);return {v0:a-p,v1:b+p}}
+function focusWin(it){
+  const k=it.hops.findIndex(h=>h.ended==='killed');if(k<0)return fitWin(it);
+  const dead=it.hops[k], nxt=it.hops[k+1];
+  const last=dead.steps.length?dead.steps[dead.steps.length-1].ts:dead.claimed_ts;
+  const r=resumeFor(it,dead,nxt);const rt=r?r.ts:(nxt?nxt.claimed_ts:dead.end_ts);
+  return {v0:last-3,v1:rt+3};
+}
+function resumeFor(it,dead,nxt){
+  if(!it.resumes.length)return null;
+  const ref=nxt?nxt.claimed_ts:dead.end_ts;
+  return it.resumes.reduce((b,r)=>Math.abs(r.ts-ref)<Math.abs(b.ts-ref)?r:b);
+}
+function niceStep(span,px){
+  const want=span/Math.max(3,px/110);
+  for(const s of [.5,1,2,5,10,15,30,60,120,300,600])if(s>=want)return s;return 1200;
+}
+
+function renderJourney(force){
+  const it=byTid(sel), J=$('journey');
+  if(!it){if(sig.j!=='none'){sig.j='none';J.innerHTML='<div class="jempty">Select a task</div>';jsig=''}return}
+  const s=JSON.stringify(it);
+  if(!force&&s===jsig)return;
+  jsig=s;sig.j='';
+  const killed=it.hops.filter(h=>h.ended==='killed');
+  const from=killed.length?shortM(killed[0].machine):'—', to=it.hops.length?shortM(it.hops[it.hops.length-1].machine):'—';
+  J.innerHTML=`
+    <div class="jh">
+      <div style="min-width:0">
+        <div class="k">Journey · <span class="mono">${esc(it.tid)}</span></div>
+        <h3>${esc(it.name||'Untitled record')}</h3>
+      </div>
+      <div class="rt"><div class="big">${it.recovery_s!=null?esc((+it.recovery_s).toFixed(1))+'<small>s</small>':'—'}</div><div class="lab">recovery · ${esc(it.hops.length)} hop${it.hops.length>1?'s':''}</div></div>
+    </div>
+    <div class="sec">
+      <div class="sech"><span class="t">Timeline</span><span class="x mono">${esc(from)} → ${esc(to)}</span>
+        <div class="zc"><span class="zl" id="zl"></span>
+          <button data-z="in" title="Zoom in">+</button><button data-z="out" title="Zoom out">−</button>
+          <button data-z="fit" title="Whole journey">Fit</button>
+          <button data-z="focus" class="acc" title="Zoom to the teleport">Focus teleport</button></div>
+      </div>
+      <div class="tl" id="tl"></div>
+      <div class="tlhelp"><kbd>⌘</kbd>/<kbd>ctrl</kbd> + scroll or pinch to zoom · drag or scroll sideways to pan</div>
+    </div>
+    <div class="sec"><div class="sech"><span class="t">Pipeline</span><span class="x">which machine did each step</span></div>${pipeHTML(it)}</div>
+    <div class="sec">${outcomeHTML(it)}</div>`;
+  if(!Z[it.tid])Z[it.tid]=fitWin(it);
+  drawTL();
+}
+
+function drawTL(){
+  const it=byTid(sel), host=$('tl');if(!it||!host)return;
+  const W=Math.max(520,host.clientWidth);jW=W;
+  const w=Z[it.tid], [a]=extent(it);
+  const X0=LBL, X1=W-RPAD, TW=X1-X0, k=TW/(w.v1-w.v0);
+  const x=t=>X0+(t-w.v0)*k;
+  const nH=it.hops.length, H=TOP+nH*LANE+(nH-1)*GAP+BOT;
+  const laneY=i=>TOP+i*(LANE+GAP), laneC=i=>laneY(i)+LANE/2;
+  const o=[];
+  o.push(`<svg viewBox="0 0 ${W} ${H}" height="${H}" aria-label="Journey timeline">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#8A97AD" stroke-width="1.2" opacity=".22"/></pattern>
+    <clipPath id="plot"><rect x="${X0}" y="0" width="${W-X0}" height="${H}"/></clipPath>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="#5B8DEF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>`);
+  // lane backgrounds + labels
+  it.hops.forEach((h,i)=>{
+    const y=laneY(i), st=h.ended==='killed'?'machine lost':h.ended==='done'?'finished':'running';
+    o.push(`<rect x="${X0}" y="${y}" width="${W-X0}" height="${LANE}" rx="10" fill="#0E1522" opacity=".55" stroke="#172133"/>`);
+    o.push(`<text x="0" y="${y+24}" font-size="13" font-weight="500" fill="${h.ended==='killed'?'#8A97AD':'#E8EEF7'}">${esc(trunc(h.machine,22))}</text>`);
+    o.push(`<text x="0" y="${y+42}" font-size="11" fill="#4E5B72">${esc(trunc(h.worker,26))}</text>`);
+    o.push(`<text x="0" y="${y+62}" font-size="10" letter-spacing=".06em" fill="${h.ended==='running'?'#5B8DEF':h.ended==='killed'?'#B8C4D6':'#8A97AD'}" font-family="Inter" font-weight="500">${esc(st.toUpperCase())}</text>`);
+  });
+  o.push(`<g clip-path="url(#plot)">`);
+  // ticks
+  const span=w.v1-w.v0, step=niceStep(span,TW);
+  const first=Math.ceil((w.v0-a)/step)*step;
+  for(let r=first;a+r<=w.v1+1e-6;r+=step){
+    const xx=x(a+r);if(xx<X0-1)continue;
+    const lab=step<1?(r).toFixed(1):Math.round(r);
+    o.push(`<line x1="${xx}" x2="${xx}" y1="22" y2="${H-BOT+6}" stroke="#172133" stroke-width="1"/>`);
+    o.push(`<text x="${xx}" y="14" font-size="11" fill="#4E5B72" text-anchor="middle">t+${esc(lab)}s</text>`);
+  }
+  // recovery shading + connectors
+  it.hops.forEach((h,i)=>{
+    const nx=it.hops[i+1];if(h.ended!=='killed'||!nx)return;
+    const e=h.end_ts??h.claimed_ts, c=nx.claimed_ts;
+    const rx0=x(e), rx1=x(c);
+    o.push(`<rect x="${rx0}" y="${laneY(i)}" width="${Math.max(0,rx1-rx0)}" height="${laneY(i+1)+LANE-laneY(i)}" fill="url(#hatch)"/>`);
+    const rec=(c-e).toFixed(1);
+    if(rx1-rx0>110)o.push(`<text x="${(rx0+rx1)/2}" y="${laneC(i)+4}" font-size="12" fill="#8A97AD" text-anchor="middle">recovery ${esc(rec)}s</text>`);
+    else o.push(`<text x="${rx1+8}" y="${laneC(i)+4}" font-size="11" fill="#8A97AD">recovery ${esc(rec)}s</text>`);
+    // lease expired marker(s)
+    it.lease_expired.filter(t=>t>=e-.5&&t<=c+1).forEach(t=>{
+      const lx=x(t);
+      o.push(`<line x1="${lx}" x2="${lx}" y1="${laneY(i)-6}" y2="${H-BOT+4}" stroke="#8A97AD" stroke-width="1.2" stroke-dasharray="1.5 4" stroke-linecap="round"/>`);
+      o.push(`<text x="${lx}" y="${H-BOT+22}" font-size="11" fill="#8A97AD" text-anchor="middle">lease expired</text>`);
+    });
+    // killed marker
+    o.push(`<line x1="${rx0}" x2="${rx0}" y1="30" y2="${laneY(i+1)+LANE}" stroke="#E8EEF7" stroke-width="1.4" stroke-dasharray="5 4" opacity=".85"/>`);
+    o.push(`<g transform="translate(${Math.max(rx0,X0+52)},38)"><rect x="-50" y="-11" width="100" height="20" rx="10" fill="#04070D" stroke="#E8EEF7" stroke-opacity=".6"/><text x="0" y="3.5" font-size="11" fill="#E8EEF7" text-anchor="middle">✕ machine lost</text></g>`);
+    // teleport connector
+    const r=resumeFor(it,h,nx), rt=r?r.ts:c, skipped=(r&&r.skipped)||it.skipped||[];
+    const sx=rx0, sy=laneC(i)+16, ex=x(rt), ey=laneC(i+1)-19, my=(sy+ey)/2;
+    o.push(`<path d="M${sx} ${sy} C ${sx} ${my+18}, ${ex} ${my-18}, ${ex} ${ey}" fill="none" stroke="#5B8DEF" stroke-width="2" marker-end="url(#ah)"/>`);
+    const lab='teleport · '+(skipped.length?'skipped '+skipped.join(', '):'restarted from claim');
+    const tw=lab.length*6.7+20, lx=Math.max(X0+6,Math.min(ex-tw-12,X1+RPAD-tw-4));
+    o.push(`<g transform="translate(${lx},${my})"><rect x="0" y="-11" width="${tw}" height="22" rx="11" fill="#0A1426" stroke="#5B8DEF" stroke-opacity=".6"/><text x="10" y="4" font-size="11" fill="#5B8DEF">${esc(lab)}</text></g>`);
+  });
+  // step pills (laid out left-to-right with minimum width; never overlap)
+  it.hops.forEach((h,i)=>{
+    const dead=h.ended==='killed', cy=laneC(i), ph=28;
+    let prev=h.claimed_ts, endPx=-1e9;
+    o.push(`<line x1="${x(h.claimed_ts)}" x2="${x(h.claimed_ts)}" y1="${cy-18}" y2="${cy+18}" stroke="${dead?'#B8C4D6':'#8A97AD'}" stroke-width="1.5"/>`);
+    o.push(`<text x="${x(h.claimed_ts)}" y="${laneY(i)+LANE-6}" font-size="10" fill="#4E5B72" text-anchor="middle">claim</text>`);
+    const segs=h.steps.map(s=>{const g={step:s.step,t0:prev,t1:s.ts};prev=s.ts;return g});
+    if(h.ended==='running'&&it.last_ts>prev)segs.push({step:'…',t0:prev,t1:it.last_ts,live:true});
+    segs.forEach(g=>{
+      const isC=g.step==='commit';
+      let x0=Math.max(x(g.t0)+1,endPx+4), x1=Math.max(x(g.t1)-1,x0+MINW);
+      endPx=x1;
+      const fill=isC?'#5B8DEF':dead?'none':g.live?'none':'rgba(138,151,173,.2)';
+      const stroke=isC?'#5B8DEF':dead?'rgba(232,238,247,.8)':g.live?'#5B8DEF':'#22304A';
+      o.push(`<g><title>${esc(g.step)} · ${esc(hms(g.t1))} · ${esc((g.t1-g.t0).toFixed(1))}s</title>
+        <rect x="${x0}" y="${cy-ph/2}" width="${x1-x0}" height="${ph}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="1.2" ${g.live?'stroke-dasharray="4 3"':''}/>
+        <text x="${(x0+x1)/2}" y="${cy+4}" font-size="12" fill="${isC?'#fff':dead?'#E8EEF7':'#E8EEF7'}" text-anchor="middle">${esc(g.step)}</text></g>`);
+      // exact-time tick if the pill had to be pushed
+      const tx=x(g.t1);if(Math.abs(tx-x1)>3)o.push(`<line x1="${tx}" x2="${tx}" y1="${cy+ph/2+2}" y2="${cy+ph/2+7}" stroke="#4E5B72"/>`);
+    });
+    if(h.ended==='done'&&!h.steps.some(s=>s.step==='commit')){
+      const x0=Math.max(x(h.end_ts)+2,endPx+4);
+      o.push(`<g><title>commit · ${esc(hms(h.end_ts))}</title><rect x="${x0}" y="${cy-ph/2}" width="74" height="${ph}" rx="7" fill="#5B8DEF"/>
+        <text x="${x0+37}" y="${cy+4}" font-size="12" fill="#fff" text-anchor="middle">✓ commit</text></g>`);
+    }
+    if(dead&&h.end_ts!=null){/* nothing after the last checkpoint on a dead lane */}
+  });
+  o.push('</g></svg>');
+  host.innerHTML=o.join('');
+  const zl=$('zl');if(zl){const f=fitWin(it);zl.textContent=Math.round((f.v1-f.v0)/(w.v1-w.v0)*100)+'%'}
+}
+function trunc(s,n){s=String(s??'');return s.length>n?s.slice(0,n-1)+'…':s}
+
+/* zoom / pan */
+function clampWin(it,w){
+  const f=fitWin(it), fs=f.v1-f.v0, minS=1.2, maxS=fs*1.5;
+  let s=Math.min(maxS,Math.max(minS,w.v1-w.v0));
+  const c=(w.v0+w.v1)/2;let v0=c-s/2;
+  v0=Math.max(f.v0-fs*.25,Math.min(f.v1+fs*.25-s,v0));
+  return {v0,v1:v0+s};
+}
+function zoomAt(f,frac){
+  const it=byTid(sel);if(!it)return;const w=Z[it.tid], t=w.v0+(w.v1-w.v0)*frac;
+  Z[it.tid]=clampWin(it,{v0:t-(t-w.v0)*f,v1:t+(w.v1-t)*f});drawTL();
+}
+function panBy(px){
+  const it=byTid(sel);if(!it)return;const w=Z[it.tid];const TW=jW-LBL-RPAD;const d=px/TW*(w.v1-w.v0);
+  Z[it.tid]=clampWin(it,{v0:w.v0+d,v1:w.v1+d});drawTL();
+}
+const fracAt=e=>{const r=$('tl').getBoundingClientRect();const px=(e.clientX-r.left)*(jW/r.width);return Math.max(0,Math.min(1,(px-LBL)/(jW-LBL-RPAD)))};
+$('journey').addEventListener('click',e=>{
+  const b=e.target.closest('[data-z]');if(!b)return;const it=byTid(sel);if(!it)return;
+  const z=b.dataset.z;
+  if(z==='in')zoomAt(1/1.5,.5);else if(z==='out')zoomAt(1.5,.5);
+  else{Z[it.tid]=clampWin(it,z==='fit'?fitWin(it):focusWin(it));drawTL()}
+});
+$('journey').addEventListener('wheel',e=>{
+  if(!e.target.closest('#tl'))return;
+  if(e.ctrlKey||e.metaKey){e.preventDefault();zoomAt(Math.exp(e.deltaY*.01),fracAt(e));return}
+  const dx=e.shiftKey&&!e.deltaX?e.deltaY:e.deltaX;
+  if(Math.abs(dx)>Math.abs(e.deltaY)||e.shiftKey){e.preventDefault();panBy(dx)}
+},{passive:false});
+let drag=null;
+$('journey').addEventListener('pointerdown',e=>{const tl=e.target.closest('#tl');if(!tl||e.button!==0)return;
+  drag={x:e.clientX,id:e.pointerId};tl.setPointerCapture(e.pointerId);tl.classList.add('drag')});
+$('journey').addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const r=$('tl').getBoundingClientRect();
+  const dx=(e.clientX-drag.x)*(jW/r.width);drag.x=e.clientX;if(dx)panBy(-dx)});
+const endDrag=()=>{if(!drag)return;drag=null;const tl=$('tl');if(tl)tl.classList.remove('drag')};
+$('journey').addEventListener('pointerup',endDrag);$('journey').addEventListener('pointercancel',endDrag);
+// Safari pinch
+let gs=1;
+$('journey').addEventListener('gesturestart',e=>{if(e.target.closest('#tl')){e.preventDefault();gs=1}});
+$('journey').addEventListener('gesturechange',e=>{if(!e.target.closest('#tl'))return;e.preventDefault();zoomAt(gs/e.scale,fracAt(e));gs=e.scale});
+new ResizeObserver(()=>{const tl=$('tl');if(tl&&Math.abs(tl.clientWidth-jW)>2)drawTL()}).observe($('journey'));
+
+/* pipeline + outcome */
+function pipeHTML(it){
+  const skipped=new Set([...(it.skipped||[]),...it.resumes.flatMap(r=>r.skipped||[])]);
+  const doneHop=it.hops.find(h=>h.ended==='done');
+  const who=s=>{let hit=null;it.hops.forEach(h=>{if(h.steps.some(x=>x.step===s))hit=h});
+    if(s==='commit'&&!hit&&doneHop)hit=doneHop;return hit};
+  const chip=h=>{if(!h)return '<span class="mc none">—</span>';
+    const c=h.ended==='killed'?'dead':h.ended==='done'?'fin':'run';
+    return `<span class="mc ${c}" title="${esc(h.machine)} · ${esc(h.worker)}">${c==='dead'?I.x:''}<span>${esc(shortM(h.machine))}</span></span>`};
+  let prevHop=null;
+  return '<div class="pipe">'+STEPS.map((s,i)=>{
+    const h=who(s);let cls='', nt='';
+    if(h&&h.ended==='killed'){cls=skipped.has(s)?'carried':'';nt=skipped.has(s)?'carried over from checkpoint':'lost with the machine'}
+    else if(!h&&skipped.has(s)){cls='carried';nt='carried over from checkpoint'}
+    else if(h){nt=s==='commit'?'written to the shared disk':h.ended==='running'?'running':'done after the teleport'}
+    else{cls='pend';nt='pending'}
+    if(s==='commit'&&h)cls+=' commit';
+    const edge=prevHop&&h&&prevHop!==h&&prevHop.ended==='killed';
+    if(h)prevHop=h;
+    return `<div class="ps ${cls}${edge?' edge':''}"><div class="sn"><span class="n">${i+1}</span>${esc(s)}</div>${chip(h)}<div class="nt">${esc(nt)}</div></div>`;
+  }).join('')+'</div>';
+}
+function outcomeHTML(it){
+  const o=it.outcome, f=o?+o.fixes||0:null, g=o?+o.flags||0:null;
+  return `<div class="sech"><span class="t">Outcome</span>${outcomeBadge(it)}</div>
+  <div class="oc"><div class="sum${it.summary?'':' none'}">${esc(it.summary||(o?'No verdict summary recorded.':'Still running on '+shortM(it.hops.length?it.hops[it.hops.length-1].machine:'?')+'.'))}</div>
+    <div class="side"><div class="n"><b>${f??'—'}</b><span>fixes</span></div><div class="n"><b>${g??'—'}</b><span>flags</span></div>
+    <a class="lnk" href="/">View in review table ${I.ext}</a></div></div>`;
+}
+
+// warm start from the session cache so tab switches never flash 'Connecting' or an empty page
+sel=ss.get('tp_sel')||null;
+try{const c=ss.get('tp_state');if(c){S=norm(JSON.parse(c));renderTop()}}catch(e){}
+try{const c=ss.get('tp_teleports');if(c)ingest(JSON.parse(c))}catch(e){}
+tick();setInterval(tick,1000);
+pollState();pollTele();
+</script>
+</body>
+</html>
