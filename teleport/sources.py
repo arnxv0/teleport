@@ -68,3 +68,43 @@ def read_rows(url, limit=200):
     for i, r in enumerate(rows):
         r["_row"] = i
     return rows
+
+
+def inspect(url, cap=200_000):
+    """Format, total row count (streamed, capped) and columns of a dataset, for the homepage."""
+    f = _open(url)
+    peek = f.peek(4096)[:4096].decode("utf-8", "replace").lstrip()
+    path = to_https(url).split("?")[0].lower().removesuffix(".gz")
+    text = io.TextIOWrapper(f, encoding="utf-8", errors="replace", newline="")
+    if path.endswith((".jsonl", ".ndjson")) or (peek.startswith("{") and "\n{" in peek):
+        fmt, n, first = "JSONL", 0, None
+        for line in text:
+            if line.strip():
+                n += 1
+                if first is None:
+                    first = json.loads(line)
+                if n >= cap:
+                    break
+        cols = list(first.keys()) if isinstance(first, dict) else []
+    elif path.endswith(".json") or peek.startswith(("[", "{")):
+        data = json.loads(text.read(50_000_000))
+        if isinstance(data, dict):
+            data = next((v for v in data.values() if isinstance(v, list)), [data])
+        rows = [r for r in data if isinstance(r, dict)]
+        fmt, n, cols = "JSON", len(rows), (list(rows[0].keys()) if rows else [])
+    else:
+        delim = "\t" if path.endswith(".tsv") or peek.count("\t") > peek.count(",") else ","
+        reader = csv.reader(text, delimiter=delim)
+        first = next(reader, [])
+        has_header = not _looks_like_data(first)
+        cols = [h.strip() or f"col_{i}" for i, h in enumerate(first)] if has_header else [f"col_{i}" for i in range(len(first))]
+        n = 0 if has_header else 1
+        for cells in reader:
+            if any(c.strip() for c in cells):
+                n += 1
+                if n >= cap:
+                    break
+        fmt = "TSV" if delim == "\t" else "CSV"
+    return {"format": fmt + (" (gzip)" if url.endswith(".gz") else ""), "rows": n, "capped": n >= cap,
+            "columns": cols[:40]}
+
