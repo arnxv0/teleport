@@ -860,7 +860,7 @@ function renderSel(){
     '<div class="stats"><div><div class="l">Status</div><div class="v" style="font-family:var(--sans);font-size:13px">' + status + '</div></div>' +
       '<div><div class="l">Alive</div><div class="v">' + alive + '<span class="c-muted">/' + ws.length + '</span></div></div>' +
       '<div><div class="l">Done</div><div class="v">' + M.done + '</div></div></div>' +
-    '<div class="btns"><button class="btn danger" id="killBtn"' + (alive ? '' : ' disabled') + '>' + I.kill + 'Kill 50%</button>' +
+    '<div class="btns"><button class="btn danger" id="killBtn"' + (alive ? '' : ' disabled') + ' title="Hard-kill this sandbox: every process stops, its tasks TELEPORT to other machines">' + I.kill + 'Kill machine</button>' +
     '<button class="btn" id="launchHere">' + I.plus + 'Launch ' + launchCount() + ' here</button></div>';
   if (ws.length) h += '<div class="sub-h">Workers</div>';
   ws.sort(function(a, b){ return (b.alive - a.alive) || String(a.worker).localeCompare(String(b.worker)); });
@@ -884,9 +884,9 @@ function post(url, body){
     .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; }); });
 }
 function doKill(name){
-  toast(tTag(I.kill, 'Kill') + ' Killing 50% of workers on <span class="mono">' + esc(name) + '</span>', 'bad', 2200);
+  toast(tTag(I.kill, 'Kill') + ' Killing machine <span class="mono">' + esc(name) + '</span>', 'bad', 2200);
   flashMachine(name, C_OFF, 1.2);
-  post('/api/kill', { machine: name, fraction: 0.5 }).then(function(j){
+  post('/api/kill', { machine: name, fraction: 1 }).then(function(j){
     var k = j && j.killed; var n = Array.isArray(k) ? k.length : (typeof k === 'number' ? k : null);
     toast(tTag(I.kill, 'Killed') + ' ' + (n == null ? '' : n + ' ') + 'worker' + (n === 1 ? '' : 's') + ' on <span class="mono">' + esc(name) + '</span> <span class="c-muted">· leases will expire, then tasks teleport</span>', 'bad', 4200);
   }).catch(function(e){ toast(tTag(I.alert, 'Kill failed') + ' ' + esc(e.message), 'bad'); });
