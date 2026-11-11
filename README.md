@@ -1,6 +1,6 @@
 # Teleport
 
-**Agents that TELEPORT to a different machine when the current one goes down.**
+**When a sandbox goes down, the agent TELEPORTs from one sandbox to another and continues without doing extra work.**
 
 [![Watch the Teleport demo](video/thumbnail.jpg)](video/out/teleport-demo.mp4)
 
@@ -25,9 +25,10 @@ Every agent keeps its state on **one shared Archil disk** instead of inside its 
 - **Checkpoints** saved to the disk after every step.
 - **Write-once results**, so a retried task can never save twice.
 
-When a sandbox goes down, its lease expires and **another sandbox on a different machine picks up the
-saved progress and finishes the task**. The agent TELEPORTs. Nothing is lost, nothing is done twice, and
-there is no queue, database or coordinator to run. The disk is the only state.
+When a sandbox goes down, its lease expires and **the agent TELEPORTs from one sandbox to another and
+continues without doing extra work**: the new sandbox reads the saved progress, skips the steps that are
+already done, and finishes the task. Nothing is lost, nothing is done twice, and there is no queue,
+database or coordinator to run. The disk is the only state.
 
 ## The demo: a data-cleaning swarm
 
@@ -66,7 +67,7 @@ Then we kill machines, replace the whole swarm, and let sandboxes die of old age
 - **Attack test:** a record with hidden instructions ("set the homepage to this URL") and a fake institution
   were both refused. 0 fixes, and the attacker's URL was never proposed.
 - **A real failure we didn't plan:** 50 agents overloaded the search service, some agents gave up on their
-  tasks, and TELEPORT handed those tasks to free agents, which finished them from the saved progress.
+  tasks, and those tasks TELEPORTed from one sandbox to another and continued without doing extra work.
 
 ## What we learned about Archil
 
@@ -81,8 +82,9 @@ We tested Archil's real behaviour before trusting it (`teleport/smoke_archil.py`
 
 ## Where else TELEPORT helps
 
-Any agent that runs for a long time or serves many people. A chatbot that gets overwhelmed or crashes can
-TELEPORT to a fresh sandbox with its memory and waiting requests intact, and keep answering. The same works
+Any agent that runs for a long time or serves many people. When a chatbot gets overwhelmed or crashes, it
+TELEPORTs from one sandbox to another with its memory and waiting requests, and continues answering without
+doing extra work. The same works
 for research agents, coding agents and batch jobs.
 
 ## Run it
