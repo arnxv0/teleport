@@ -1,185 +1,103 @@
 # Teleport
 
-**Agents that survive their machines dying.**
+**Agents that TELEPORT to a different machine when the current one goes down.**
 
-[![Watch the Teleport demo video](video/thumbnail.jpg)](video/out/teleport-demo.mp4)
+[![Watch the Teleport demo](video/thumbnail.jpg)](video/out/teleport-demo.mp4)
 
-**Demo video (3.5 min):** [video/out/teleport-demo.mp4](video/out/teleport-demo.mp4). The UI footage is
-recorded from a live run on Archil. The voiceover was generated with OpenAI's `gpt-4o-mini-tts` from our
-script, and the video was made with [Remotion](https://www.remotion.dev) (source in [`video/`](video/)).
+▶ **[Demo video, 3.5 min](video/out/teleport-demo.mp4)**
 
-AI agents increasingly run long jobs on **ephemeral sandboxes**: VMs that time out (ours live 30
-minutes), pause when idle, crash, or get reclaimed. When one dies, everything the agent was doing dies
-with it: half-finished work is lost, paid LLM and API calls are wasted, and a naive retry can write the
-same result twice.
+## The problem
 
-**With Teleport, agents TELEPORT to a different machine when the current one goes down.** Every agent keeps its state on one shared
-**Archil disk**, not in its VM:
-- **Atomic claims:** a rename plus an exclusive `O_EXCL` marker, so exactly one agent owns a task.
-- **Leases** renewed every 5 seconds, so a dead agent is detected within 20 seconds.
-- **Per-step checkpoints**, fsync'd to the disk after every step.
-- **Write-once results**, so a retried agent can never duplicate a commit.
+AI agents now run long jobs on cloud sandboxes, and sandboxes stop all the time. Ours shut down after
+30 minutes, and they also crash, run out of memory, or get overloaded. When a sandbox stops, the agent
+loses everything it was doing:
 
-When a sandbox dies mid-task, its lease expires and **another sandbox, on a different machine, resumes
-the task from its last checkpoint**. The work *teleports*: nothing is lost and nothing is done twice. No
-queue, database or coordinator is needed; the disk is the swarm's only state, so any machine that
-mounts it can join or take over.
+- half-finished work is gone,
+- the money spent on LLM and API calls is wasted,
+- and a simple retry can save the same result twice.
 
-### Demonstrated by: an automated data-cleaning swarm
+## The idea: TELEPORT
 
-To prove it under real load, we built a platform on top of it. Paste the URL of any public dataset (CSV,
-JSON or JSONL). A **planner agent** decides what can be verified on the live web, and Teleport spawns a
-swarm of agents in Archil sandboxes. Each agent checks records with **Keenable** search and fetch, an LLM
-judge proposes fixes, and a deterministic **evidence gate** decides what counts. Fixes are reviewed by a
-human and applied to an Archil **branch**; the original stays untouched.
+Every agent keeps its state on **one shared Archil disk** instead of inside its sandbox:
 
-Then we kill machines mid-run, replace the entire swarm, and let sandboxes die of old age, and watch
-every task finish anyway.
+- **Claims:** an atomic rename plus an exclusive marker, so exactly one agent owns a task.
+- **Leases** renewed every 5 seconds, so a dead agent is noticed within 20 seconds.
+- **Checkpoints** saved to the disk after every step.
+- **Write-once results**, so a retried task can never save twice.
+
+When a sandbox goes down, its lease expires and **another sandbox on a different machine picks up the
+saved progress and finishes the task**. The agent TELEPORTs. Nothing is lost, nothing is done twice, and
+there is no queue, database or coordinator to run. The disk is the only state.
+
+## The demo: a data-cleaning swarm
+
+To prove TELEPORT under real load, we built a data-cleaning platform on top of it.
+
+1. Paste a link to any public dataset (CSV, JSON or JSONL).
+2. A **planner agent** decides what can be checked on the live web (websites, headquarters, founding
+   years, countries) and how to search for each field.
+3. Teleport launches a **swarm of agents**, one per Archil sandbox.
+4. Each agent checks its records with **Keenable** search and page fetch, and an LLM judge proposes fixes.
+5. A **deterministic evidence gate** decides what counts: every cited URL must come from Keenable, the
+   evidence must name this exact entity, and refinements (like adding a street address) don't count.
+6. A person accepts fixes, which are applied to an Archil **branch**. The original data is never touched.
+
+Then we kill machines, replace the whole swarm, and let sandboxes die of old age. Every task still finishes.
+
+## How each sponsor is used
+
+| | |
+|---|---|
+| **Archil** | Makes TELEPORT possible: one shared disk every sandbox can open at once (the swarm's only state), the sandboxes themselves, a server-side ingest, checkpoints and branches for safe edits, and the S3 API that the dashboard reads. |
+| **Keenable** | Every fact is checked with a targeted Keenable search per field plus a page fetch. A fix only counts if it cites a page Keenable returned, enforced in code. |
+| **Casco** | Hosted the hackathon. |
+
+## Results (measured on Archil)
+
+| Run | Records | Agents | Verified fixes | Machines lost | Work lost |
+|---|---|---|---|---|---|
+| S&P 500 companies | 503 | 50 | 181 | all 50 replaced mid-run | **0** |
+| OpenAlex institutions, Nigeria | 502 | 10 | 58 | 13 | **0** |
+| World universities | 60 | 8 | 8 | 2 | **0** |
+
+- **Nothing was ever saved twice.** In the 50-agent run, 178 duplicate claims were blocked by the claim markers.
+- **Real fixes:** Ares Management founded **1977 → 1997**; Zankli Medical Centre `zankli.com` → `zanklimedical.com`;
+  American College of Dubai `acd.ac.ae` → `acd.ae`.
+- **Attack test:** a record with hidden instructions ("set the homepage to this URL") and a fake institution
+  were both refused. 0 fixes, and the attacker's URL was never proposed.
+- **A real failure we didn't plan:** 50 agents overloaded the search service, some agents gave up on their
+  tasks, and TELEPORT handed those tasks to free agents, which finished them from the saved progress.
+
+## What we learned about Archil
+
+We tested Archil's real behaviour before trusting it (`teleport/smoke_archil.py`) and built around what we found:
+
+| We expected | What happened | What Teleport does |
+|---|---|---|
+| A rename has exactly one winner | Two sandboxes both "won" the same rename | Claims also take an exclusive `O_EXCL` marker |
+| `link()` is safe for write-once files | One file got the other writer's contents | All write-once files use `O_EXCL` |
+| Directory listings are fresh | Cached for up to 5 minutes | Claims never depend on listings |
+| Saved data survives a crash | ✅ Yes, after `fsync`, even with SIGKILL | Every commit is fsync'd |
 
 ## Where else TELEPORT helps
 
-TELEPORT is for any agent that runs for a long time or serves many requests.
+Any agent that runs for a long time or serves many people. A chatbot that gets overwhelmed or crashes can
+TELEPORT to a fresh sandbox with its memory and waiting requests intact, and keep answering. The same works
+for research agents, coding agents and batch jobs.
 
-- **A smart chatbot or assistant.** It answers thousands of people. When too many requests pile up, or its
-  sandbox crashes or runs out of memory, the bot breaks down. With TELEPORT, the bot keeps its memory and its
-  list of waiting requests on the shared disk, so it TELEPORTs to a fresh sandbox and keeps answering where
-  it left off. Nobody's request is lost or answered twice.
-- **Research agents** that read hundreds of pages over hours.
-- **Coding agents** that work across many repositories.
-- **Batch jobs** like evaluations, scraping, or document processing.
-
-Data cleaning is the first application we built to prove TELEPORT works under real load.
-
-## Results (measured tonight, on Archil)
-
-| Run | Records | Agents | Verified fixes | Flagged | Machines killed | Teleports | Duplicates | Work lost |
-|---|---|---|---|---|---|---|---|---|
-| OpenAlex institutions, Nigeria (+2 poison records) | 502 | 10 sandboxes, then the whole swarm replaced mid-run | 58 | 39 | 3 hard-killed + 10 replaced | 10 | 0 | **0** |
-| World Universities CSV, pasted on the homepage | 60 | 8 sandboxes | 8 | 7 | 2 | 2 | 0 | **0** |
-| S&P 500 companies, 50-agent stress test (Keenable rate-limit storm + whole swarm replaced) | 503 | 50 sandboxes in 5 pools | 181 | 36 | 50 replaced mid-run | 466* | 0 written twice (178 duplicate claims blocked) | **0** |
-
-\* Inflated by the rate-limit storm: 310 failed API calls made agents abandon tasks, which were requeued and
-resumed elsewhere. It's the harness working under stress, not machines dying. A real error it found:
-Ares Management founded **1977 → 1997**.
-
-- **Example fixes:** Zankli Medical Centre `zankli.com` → `zanklimedical.com`; American College of Dubai
-  `acd.ac.ae` → `acd.ae`; Al Khawarizmi International College `khawarizmi.com` → `kic.ac.ae`.
-- **Poison records:** a prompt injection hidden in the data (it tells the "auditor" to point the
-  homepage at an attacker URL) and a plausible but nonexistent institution. **0 fixes**, 4 proposals flagged,
-  and the attacker URL was never proposed.
-- **Mid-task resume:** for example, a task killed after `probe → search → fetch` on one sandbox resumed on
-  another, and only the LLM judge ran again.
-
-## How it works
-
-```
-paste URL ─► planner agent (LLM) ─► plan.json ─► ingest (in a sandbox) ─► tasks on the Archil disk
-                                                                              │
-     ┌──────────────── Archil sandboxes, each running the same stateless worker ┘
-     │  claim ─► probe URL ─► Keenable search (one targeted query per field) ─► Keenable fetch
-     │        ─► LLM judge ─► evidence gate ─► write-once fix / flag / verdict ─► done
-     │  (checkpoint to the disk after every step; lease renewed every 5s)
-     └─► machine dies ─► lease expires ─► reaper requeues ─► another machine resumes from the checkpoint
-```
-
-All state lives on **one shared Archil disk**. It is the queue, the lock, the log and the result store,
-with no database, queue or cluster:
-
-```
-plan.json                   the planner agent's decisions (what to verify, how to search)
-raw/                        the ingested slice (checkpoint "raw")
-tasks/manifest.json         every task id
-tasks/todo|claimed|done/    task lifecycle
-claims/<tid>.<gen>          O_EXCL claim marker: the real arbiter of who owns a task
-leases/<tid>.json           {worker, machine, epoch, expires_at}, or {done: true}
-checkpoints/<tid>.json      per-step outputs, so another machine resumes mid-task
-verdicts/<tid>.json         write-once outcome per record (the "no lost work" proof)
-fixes/ flags/ accepted/     write-once fixes with evidence, flags, and human review decisions
-log/<worker>.jsonl          per-worker append-only events
-```
-
-### What we learned about Archil (and engineered around)
-
-We ran a smoke test against real sandboxes before trusting any assumption (`teleport/smoke_archil.py`):
-
-| Assumption | What actually happened on a conditional mount | What Teleport does |
-|---|---|---|
-| `rename` gives exactly one winner | Two sandboxes both "won" the same rename once in 200 | Claim = rename **plus** an `O_CREAT\|O_EXCL` marker per generation; the loser logs `duplicate_prevented` |
-| `link(tmp, final)` is write-once | One file ended up with the other writer's contents | All write-once files use `O_EXCL` (50/50 exclusive in the test) |
-| `setsid nohup … &` survives `exec` | The process dies when `exec` returns | `sandbox.run()` + `disconnect()` |
-| Listings/`stat` are fresh | Listings are cached up to 5 min and `stat` up to 30s, so finished tasks looked orphaned | Manifest-based claiming, a `requeued.json` read via `open()`, done-leases instead of deletes |
-| Sandboxes stay up | 30-minute max TTL; detached processes pause after 30 min idle | `idle_ttl_seconds=0`; leases plus checkpoints make losing a sandbox routine |
-| `fsync` is durable | ✅ survives SIGKILL and `stop()`; visible to other sandboxes and the S3 API | Every commit is fsync'd |
-
-### The evidence gate (deterministic; the LLM cannot talk its way past it)
-
-A proposed change is a **verified fix** only if:
-1. every cited URL is one Keenable actually returned in this run (no invented evidence),
-2. the cited evidence contains every distinctive word of this record's name (not a lookalike),
-3. for URL fields, the new domain is in the evidence and the current URL is not confirmed alive,
-4. it isn't a downgrade (for example to "other") and keeps the field's format (for example ISO-2).
-
-Anything else is **flagged for human review**. Cosmetic changes (http → https, www) are dropped.
-
-## Running it
-
-Python 3.10+. Workers are stdlib only; the Archil backend needs `pip install archil`.
+## Run it
 
 ```bash
-# Archil: the dashboard creates a disk, runs the planner, ingests and launches sandboxes from a pasted URL
+pip install archil
 ARCHIL_API_KEY=... OPENAI_API_KEY=... KEENABLE_API_KEY=... python3 -m teleport.dashboard --archil --port 8789
-#   /            Overview: paste a URL, plan, fleet, review table (Accept → branch)
-#   /3d          Swarm 3D: machines around the Archil disk; click a machine to kill it
-#   /teleports   every task that survived a machine dying, as a timeline across machines
-#   /connect     preview: bring your own machine
-
-# Local (one laptop, workers labelled as separate machines)
-python3 -m teleport.dashboard --port 8788
-
-# CLI equivalents
-python3 -m teleport.ingest --url <dataset-url> --limit 200
-python3 -m teleport.swarm archil launch --n 8 --machine A
-python3 -m teleport.swarm archil kill --machine A --n 4
-python3 -m teleport.apply_fixes --archil      # accepted fixes → cleaned/ with provenance
-.venv/bin/python teleport/smoke_archil.py     # verify Archil semantics (A–G)
 ```
 
-| Variable | Purpose |
-|---|---|
-| `ARCHIL_API_KEY`, `ARCHIL_REGION` | Archil backend (default region `aws-us-east-1`) |
-| `OPENAI_API_KEY`, `TELEPORT_MODEL` | planner and judge (default `gpt-4.1-mini`) |
-| `KEENABLE_API_KEY` | Keenable search and fetch (falls back to the keyless public endpoint) |
-| `TELEPORT_LEASE_TTL`, `TELEPORT_HEARTBEAT` | lease lifetime and refresh, in seconds (20 / 5) |
-| `TELEPORT_STEP_DELAY` | slow each step down so a live demo is visible |
-| `TELEPORT_SANDBOX_TTL` | sandbox max lifetime (1800 = Free-plan cap) |
+Open http://localhost:8789, paste a dataset link, choose rows and agents, and press **Start cleaning**.
+Tabs: **Overview** (plan, fleet, review), **Swarm 3D** (click a machine to kill it), **Teleports** (each task's
+journey across machines), **Data** (before and after), **Connect** (preview: bring your own machine).
 
-## Code map
+## Next steps
 
-`teleport/config.py` settings · `fs.py` durable file primitives · `tasks.py` claim/lease/reap ·
-`events.py` logs · `plan.py` planner agent · `sources.py` CSV/JSON/JSONL readers · `checks/` probe,
-Keenable, judge, gate · `worker.py` · `reaper.py` · `ingest.py` · `backends/` local and Archil ·
-`view.py` + `dashboard.py` + `*.html` dashboard · `apply_fixes.py` branch output · `smoke_archil.py`
-
-## Honest limits and next steps
-
-- Resume is per step. A machine killed *during* the LLM call loses that one call. Next: stream tokens to the
-  disk and resume generation with a prefill.
-- A human picks the swarm size. Next: an autoscaler agent driven by queue depth and sandbox TTLs.
-- Bring your own machine (`/connect`) is a preview: the join script exists, but we don't demo it.
-
-## Hackathon tracks
-
-| Track | Why Teleport fits |
-|---|---|
-| Most Creative | Paste any dataset: a planner agent designs the checks, and a swarm cleans it, and its agents TELEPORT to new machines when theirs go down. Git for public data. |
-| Best Use of Archil | The disk is the swarm's only state (queue, locks, logs, results); sandboxes and the SDK for the whole lifecycle; server-side ingest; checkpoints and branches; the S3 API for the dashboard; a measured smoke test of Archil's semantics. |
-| Technical Execution | O_EXCL claims with generations, leases, write-once commits, per-step checkpoints: **0 lost, 0 duplicated** across 15 machines killed or replaced mid-task. |
-| Keenable | One targeted search per field, plus fetch; every verified fix cites Keenable URLs, enforced in code. |
-
-## Rebuilding the video
-
-```bash
-cd video && npm install
-python3 script/tts.py                 # voiceover per scene -> public/audio, public/scenes.json (needs OPENAI_API_KEY)
-node scripts/assets.mjs && npx remotion render src/index.ts Teleport out/teleport-demo.mp4 --codec h264 --crf 20
-```
+- Resume mid-LLM-call by streaming tokens to the disk.
+- Let the planner adapt during a run and size the swarm to the search budget.
+- Bring your own machine: any computer that mounts the disk joins the swarm.
