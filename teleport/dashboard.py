@@ -61,7 +61,8 @@ echo "Joined run __RUN__ with $N workers as machine byo:$HOST. Stop with: pkill 
 """
 
 PAGES = {"/": "dashboard.html", "/index.html": "dashboard.html", "/3d": "dashboard3d.html",
-         "/teleports": "teleports.html", "/connect": "connect.html"}
+         "/teleports": "teleports.html", "/connect": "connect.html",
+         "/data": "data.html"}
 
 
 class App:
@@ -130,8 +131,10 @@ class App:
     def state(self):
         st = {**(self._snap or self.view.state()), "mode": self.mode, "run": self.run}
         if self.run and self.run["phase"] == "running" and st["total"] and st["done"] >= st["total"]:
-            self.run.update(phase="complete", message=f"{st['done']} records verified")
+            self.run.update(phase="complete", message=f"{st['done']} records verified; releasing sandboxes")
             self._save_run()
+            if self.mode == "archil":
+                threading.Thread(target=self._release, daemon=True).start()
         return st
 
     # ----- paste a URL -> planner agent -> ingest -> swarm -----
@@ -188,9 +191,12 @@ class App:
                 raise RuntimeError("ingest produced no tasks (unreadable URL or planner failure)")
             self._phase("launching", f"launching {workers} agents for {man['count']} records")
             if self.mode == "archil":
-                half = (workers + 1) // 2
-                b.launch(half, "A")
-                b.launch(workers - half, "B")
+                # pools of up to 10 sandboxes (A, B, C, ...): each pool is one ring in Swarm 3D
+                pools = [min(10, workers - i) for i in range(0, workers, 10)]
+                if len(pools) == 1 and workers > 1:  # small swarms still get two pools to kill between
+                    pools = [(workers + 1) // 2, workers // 2]
+                for i, k in enumerate(pools):
+                    b.launch(k, "ABCDEFGHIJ"[i])
             else:
                 b.launch((workers + 1) // 2, "laptop-A")
                 b.launch(workers // 2, "laptop-B")
@@ -215,6 +221,25 @@ class App:
                 raise RuntimeError(f"unsafe characters in {k.strip('_').lower()}")
             out = out.replace(k, v)
         return out
+
+    def _release(self):
+        """Run finished: workers have exited on their own; stop and delete the idle sandboxes so they
+        stop costing money. Results are safe on the disk."""
+        time.sleep(35)  # let workers notice the run is done and exit cleanly (max idle 30s)
+        try:
+            n = len(self.backend.s.get("sandboxes", {}))
+            self.backend.teardown()
+            if self.backend.s.get("reaper"):
+                try:
+                    sb = self.backend.archil.get_sandbox(self.backend.s["reaper"])
+                    sb.stop(); sb.delete()
+                except Exception:
+                    pass
+            self.run.update(message=f"{self._snap['done'] if self._snap else ''} records verified; "
+                                    f"{n} sandboxes released")
+            self._save_run()
+        except Exception as e:
+            print("release failed", e, flush=True)
 
     def kill(self, machine, fraction):
         ws = [w for w in self.view.state()["workers"] if w["alive"] and not w["worker"].startswith("reaper")]
@@ -263,6 +288,12 @@ def make_handler(app):
             if self.path.startswith("/api/join-info"):
                 return self._send(200, {"code": JOIN_CODE, "path": f"/join.sh?code={JOIN_CODE}",
                                         "available": app.mode == "archil"})
+            if self.path.startswith("/api/rows"):
+                from urllib.parse import parse_qs, urlparse
+                qs = parse_qs(urlparse(self.path).query)
+                return self._send(200, app.view.rows(changed_only=qs.get("changed", ["0"])[0] == "1",
+                                                     limit=min(int(qs.get("limit", ["300"])[0]), 2000),
+                                                     q=qs.get("q", [""])[0]))
             if self.path.startswith("/api/teleports"):
                 return self._send(200, app.teleports())
             if self.path.startswith("/api/state"):
@@ -274,7 +305,7 @@ def make_handler(app):
             try:
                 if self.path == "/api/start":
                     rid = app.start(str(body.get("url", "")).strip(), min(int(body.get("limit") or 200), 2000),
-                                    max(1, min(int(body.get("workers") or 8), 16)))
+                                    max(1, min(int(body.get("workers") or 8), 64)))
                     return self._send(200, {"ok": True, "run_id": rid})
                 if self.path == "/api/accept":
                     ids = body.get("fix_ids") or [body["fix_id"]]

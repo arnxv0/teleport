@@ -17,6 +17,10 @@ Verify ONLY these fields:
 Rules:
 - Search results are tagged with "for_fields": the field(s) that targeted search was run to verify.
   Prefer evidence from the search aimed at the field you are judging.
+- Propose a change ONLY when the current value is WRONG: contradicted by EVIDENCE. Never propose a
+  more detailed, more precise, reformatted or abbreviated version of a value that is still correct
+  (e.g. city -> street address, adding a postcode, "Massachusetts" -> "MA", a neighbourhood -> its
+  city). Those are not errors.
 - Propose a change only when EVIDENCE directly supports it, and cite the exact evidence URLs.
 - Make sure the evidence is about THIS {entity}, not a different one with a similar name.
 - For url fields: if the URL is missing, dead, parked, or points to a different organisation, propose

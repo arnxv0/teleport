@@ -4,7 +4,7 @@ import re
 
 from .. import config
 from .. import plan as planlib
-from .domains import domain, name_match
+from .domains import domain, name_match, tokens
 
 
 def _kind(field):
@@ -16,7 +16,34 @@ def is_cosmetic(issue):
     old, new = str(issue.get("old") or "").strip(), str(issue.get("new") or "").strip()
     if not issue.get("field") or old.lower() == new.lower():
         return True
-    return _kind(issue["field"]) == "url" and domain(new) == domain(old) != ""
+    kind = _kind(issue["field"])
+    if kind == "url":
+        return domain(new) == domain(old) != ""
+    # A refinement is not a correction: "Los Angeles, California" -> "1800 Avenue of the Stars, Los
+    # Angeles, California" keeps every word of the old value, so the old value was not wrong.
+    old_t = _norm_tokens(old)
+    return bool(old_t) and old_t <= _norm_tokens(new)
+
+
+_STATES = dict(al="alabama", ak="alaska", az="arizona", ar="arkansas", ca="california", co="colorado",
+               ct="connecticut", de="delaware", fl="florida", ga="georgia", hi="hawaii", id="idaho",
+               il="illinois", in_="indiana", ia="iowa", ks="kansas", ky="kentucky", la="louisiana",
+               me="maine", md="maryland", ma="massachusetts", mi="michigan", mn="minnesota",
+               ms="mississippi", mo="missouri", mt="montana", ne="nebraska", nv="nevada",
+               nh="new hampshire", nj="new jersey", nm="new mexico", ny="new york", nc="north carolina",
+               nd="north dakota", oh="ohio", ok="oklahoma", or_="oregon", pa="pennsylvania",
+               ri="rhode island", sc="south carolina", sd="south dakota", tn="tennessee", tx="texas",
+               ut="utah", vt="vermont", va="virginia", wa="washington", wv="west virginia",
+               wi="wisconsin", wy="wyoming", dc="district of columbia")
+
+
+def _norm_tokens(text):
+    """Words of a value with US state codes expanded, so 'CA' and 'California' compare equal."""
+    words = re.findall(r"[a-z0-9]+", str(text).lower())
+    out = []
+    for w in words:
+        out.extend((_STATES.get(w) or _STATES.get(w + "_") or w).split())
+    return {w for w in out if len(w) >= 3 and w not in ("the", "and", "city")}
 
 
 def evidence_texts(steps):

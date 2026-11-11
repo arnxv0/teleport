@@ -31,14 +31,14 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .brand{display:flex;align-items:center;gap:10px;white-space:nowrap;min-width:0;flex:none}
 .brand .name{font-weight:600;font-size:16px;letter-spacing:-.01em}
 .brand .sub{color:var(--muted);font-size:13px;padding-left:10px;border-left:1px solid var(--border)}
-@media(max-width:1379px){.brand .sub{display:none}}
+@media(max-width:1439px){.brand .sub{display:none}}
 .nav{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 .nav a{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:7px;color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;white-space:nowrap;border:1px solid transparent;transition:color .12s,background .12s}
 .nav a svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .nav a:hover{color:var(--text)}
 .nav a.on{background:var(--surface-2);color:var(--text);border-color:var(--border-strong)}
 .top .right{margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap;flex:none}
-@media(max-width:1279px){.top .clock{display:none}}
+@media(max-width:1379px){.top .clock{display:none}}
 .pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid var(--border);color:var(--muted);background:var(--surface-2);white-space:nowrap}
 .pill.run{color:var(--success);border-color:rgba(232,238,247,.3);background:var(--success-t)}
 .pill.done{color:var(--accent);border-color:rgba(91,141,239,.3);background:var(--accent-t)}
@@ -351,6 +351,7 @@ button,.btn{height:32px;padding:0 12px}
     <a href="/" class="on" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Overview</a>
     <a href="/3d"><svg viewBox="0 0 24 24"><path d="M12 2.8 20 7.4v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/></svg>Swarm 3D</a>
     <a href="/teleports"><svg viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><path d="M8.5 19H17a3.5 3.5 0 0 0 0-7H7a3.5 3.5 0 0 1 0-7h8.5"/><circle cx="18" cy="5" r="2.5"/></svg>Teleports</a>
+    <a href="/data"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/></svg>Data</a>
     <a href="/connect"><svg viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/></svg>Connect</a>
   </nav>
   <div class="right">
@@ -371,7 +372,7 @@ button,.btn{height:32px;padding:0 12px}
       <form class="hero-form" id="heroForm" onsubmit="startRun(event)">
         <label class="fld grow"><span>Dataset URL</span><input id="srcUrl" placeholder="https://… or s3://…  (.csv · .json · .jsonl · .gz)" spellcheck="false" autocomplete="off"></label>
         <label class="fld"><span>Rows</span><input id="rowsIn" type="number" min="1" max="2000" value="200"></label>
-        <label class="fld"><span>Agents</span><input id="agentsIn" type="number" min="1" max="16" value="8"></label>
+        <label class="fld" title="One Archil sandbox per agent, in pools of 10 (each pool is a ring in Swarm 3D). Around 20 or fewer stays under Keenable's rate limit."><span>Agents · sandboxes</span><input id="agentsIn" type="number" min="1" max="64" value="16"></label>
         <button class="primary" id="startBtn" type="submit">Start cleaning</button>
       </form>
       <div class="examples">Examples
@@ -503,7 +504,7 @@ async function startRun(ev){
   const url=$('srcUrl').value.trim();
   if(!url){showErr('Paste a dataset URL to start.');return}
   if(!/^(https?|s3):\/\/\S+$/i.test(url)){showErr('URL must start with https:// or s3://');return}
-  const limit=clampNum('rowsIn',1,2000,200), workers=clampNum('agentsIn',1,16,8);
+  const limit=clampNum('rowsIn',1,2000,200), workers=clampNum('agentsIn',1,64,16);
   posting=true;showErr('');renderHero();
   try{
     const r=await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,limit,workers})});

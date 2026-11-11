@@ -23,6 +23,8 @@ def run(record, _steps):
     if not field:
         return {"status": "n/a", "final_url": None, "code": None}
     url = planlib.get(record, field)
+    if isinstance(url, list):  # e.g. "web_pages": ["https://..."]
+        url = url[0] if url else None
     if url and "://" not in str(url):
         url = "http://" + str(url)
     if not url:

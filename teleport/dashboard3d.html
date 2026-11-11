@@ -145,6 +145,22 @@ input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--acc
 #legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
 #legend .sep{width:1px;height:16px;background:var(--border)}
 #camctl{right:16px;bottom:16px;display:flex;gap:8px;align-items:center}
+#tview{position:fixed;left:0;right:0;top:132px;bottom:64px;z-index:6;overflow:auto;padding:12px 24px 24px;background:var(--bg);display:none}
+body.tableview #tview{display:block}
+body.tableview #sel,body.tableview #log,body.tableview #legend,body.tableview #help,body.tableview #toast{display:none}
+#tview .pool{margin:0 0 18px}
+#tview .ph2{display:flex;align-items:baseline;gap:10px;margin:6px 0 8px;font-size:13px;color:var(--muted)}
+#tview .ph2 b{color:var(--text);font-weight:600;font-size:14px}
+#tview table{width:100%;border-collapse:collapse;font-size:13px}
+#tview th{position:sticky;top:-12px;background:var(--bg);text-align:left;font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border)}
+#tview td{padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+#tview td.mono{font-family:var(--mono);font-size:12px}
+#tview tr.dead td{color:var(--faint)}
+#tview .st{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+#tview .st i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+#tview .st.busy i{background:var(--accent)}#tview .st.idle i{background:var(--muted)}#tview .st.dead i{background:transparent;border:1px dashed var(--muted)}
+#tview .kbtn{height:26px;padding:0 10px;border-radius:6px;border:1px solid var(--border-strong);background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
+#tview .kbtn:hover{color:var(--text);border-color:var(--muted)}
 .seg{display:flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:10px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;min-width:30px;padding:0 9px;border-radius:7px;border:1px solid transparent;background:transparent;
   color:var(--muted);font:500 13px var(--sans);cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
@@ -177,8 +193,8 @@ input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--acc
 body.has-sel #log{display:none}
 body.has-sel #sel{max-height:calc(100vh - 180px)}
 @media(min-width:1800px){.kpi .v{font-size:26px}#feed{width:340px}#sel,#log{width:340px}}
-@media(max-width:1379px){.brand .sub{display:none}}
-@media(max-width:1279px){.clock{display:none}}
+@media(max-width:1439px){.brand .sub{display:none}}
+@media(max-width:1379px){.clock{display:none}}
 @media(max-width:1280px){#kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.kpi:nth-child(5){border-left:0}.kpi:nth-child(n+5){border-top:1px solid var(--border)}
   #sel,#feed,#toast{top:220px}#sel{max-height:calc(100vh - 220px - 262px)}#feed{max-height:calc(100vh - 288px)}#legend,#help{display:none}}
 @media(max-width:899px){#feed,#log{display:none}.nav{display:none}}
@@ -202,6 +218,7 @@ body.has-sel #sel{max-height:calc(100vh - 180px)}
     <a href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Overview</a>
     <a href="/3d" class="on" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>Swarm 3D</a>
     <a href="/teleports"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><path d="M8.5 19H17a3.5 3.5 0 0 0 0-7H7a3.5 3.5 0 0 1 0-7h8.5"/><circle cx="18" cy="5" r="2.5"/></svg>Teleports</a>
+    <a href="/data"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/></svg>Data</a>
     <a href="/connect"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/></svg>Connect</a>
   </nav>
   <div class="right">
@@ -244,7 +261,12 @@ body.has-sel #sel{max-height:calc(100vh - 180px)}
 </aside>
 
 <div id="help" class="hud">Click a machine to focus · drag to orbit · right-drag or shift-drag to pan · scroll to zoom · Esc to reset</div>
+<div id="tview" aria-label="Machines table"></div>
 <div id="camctl" class="hud">
+  <div class="seg" role="group" aria-label="View">
+    <button id="v3d" class="on" title="3D view">3D</button>
+    <button id="vtab" title="Table view">Table</button>
+  </div>
   <div class="seg" role="group" aria-label="Camera">
     <button id="zIn" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     <button id="zOut" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
@@ -886,6 +908,7 @@ function layoutMachines(){
     var pa = poolOf(a) || '~', pb = poolOf(b) || '~'; return pa < pb ? -1 : pa > pb ? 1 : (a < b ? -1 : a > b ? 1 : 0);
   });
   var n = names.length;
+  if (n > 12){ layoutRings(names); return; }
   var gaps = 0; for (var i = 1; i < n; i++) if (poolOf(names[i]) !== poolOf(names[i - 1])) gaps++;
   if (gaps > 0 && poolOf(names[0]) !== poolOf(names[n - 1])) gaps++;
   var GAP = 1.0, slots = n + gaps * GAP;
@@ -909,6 +932,73 @@ function layoutMachines(){
   floor.scale.setScalar(Math.max(0.5, (R2 + 10) / 60) * 1.6);
 }
 
+function layoutRings(names){
+  // Large swarms: one concentric ring per pool (A innermost), each sized to fit its machines,
+  // rotated half a slot per ring so labels on neighbouring rings don't line up.
+  var groups = [], byPool = {};
+  names.forEach(function(name){
+    var p = poolOf(name);
+    if (p === null){ p = '~' + Math.floor(groups.length ? (groups[groups.length - 1].length >= 12 ? groups.length : groups.length - 1) : 0); }
+    if (!byPool[p]){ byPool[p] = []; groups.push(byPool[p]); }
+    byPool[p].push(name);
+  });
+  var SPACING = 8.2, RING_GAP = 8.5, R = 0, outer = 0;
+  groups.forEach(function(g, gi){
+    var need = (g.length * SPACING) / (Math.PI * 2);
+    R = gi === 0 ? Math.max(12, need) : Math.max(R + RING_GAP, need);
+    var off = (gi % 2) * (Math.PI / Math.max(1, g.length));
+    g.forEach(function(name, i){
+      var a = (i / g.length) * Math.PI * 2 - Math.PI / 2 + off;
+      var M = machines[name]; M.target.set(Math.cos(a) * R, 0, Math.sin(a) * R);
+      if (!M.placed){ M.pos.copy(M.target); M.placed = true; }
+    });
+    outer = R;
+  });
+  view.fitR = outer + PAD_W * 0.7;
+  view.fitDist = Math.max(30, view.fitR * 1.75 + 6);
+  view.maxDist = view.fitDist * 1.9;
+  if (view.mode === 'overview') fitView();
+  grid.scale.setScalar(Math.max(1, outer / 10));
+  floor.scale.setScalar(Math.max(0.5, (outer + 10) / 60) * 1.6);
+}
+
+var tableOn = false, lastTableHtml = '';
+function setView(t){
+  tableOn = t; document.body.classList.toggle('tableview', t);
+  $('v3d').classList.toggle('on', !t); $('vtab').classList.toggle('on', t);
+  try { sessionStorage.setItem('tp_3d_view', t ? 'table' : '3d'); } catch (_) {}
+  if (t) renderTable();
+}
+function renderTable(){
+  if (!tableOn || !lastState) return;
+  var S = lastState, done = runComplete;
+  var ws = (Array.isArray(S.workers) ? S.workers : []).filter(function(w){ return w && w.worker && !isReaper(w.worker); });
+  var byPool = {};
+  ws.forEach(function(w){ var p = poolOf(w.machine) || w.machine; (byPool[p] = byPool[p] || []).push(w); });
+  var pools = Object.keys(byPool).sort();
+  var h = pools.map(function(p){
+    var list = byPool[p].sort(function(a, b){ return String(a.worker).localeCompare(String(b.worker), undefined, {numeric: true}); });
+    var alive = list.filter(function(w){ return w.alive; }).length;
+    var rows = list.map(function(w){
+      var st = !w.alive ? (done ? ['idle', 'Finished'] : ['dead', 'Down']) : (w.tid ? ['busy', esc(w.step || 'working')] : ['idle', 'Idle']);
+      return '<tr class="' + (w.alive ? '' : 'dead') + '"><td class="mono">' + esc(shortMachine(w.machine)) + '</td><td class="mono">' + esc(w.worker) +
+        '</td><td><span class="st ' + st[0] + '"><i></i>' + st[1] + '</span></td><td class="mono">' + esc(w.alive && w.tid ? w.tid : '—') +
+        '</td><td class="mono">' + num(w.done) + '</td><td class="mono">' + num(w.fixes) + '</td><td class="mono">' + num(w.flags) +
+        '</td><td>' + (w.alive && !done ? '<button class="kbtn" data-kill="' + esc(w.machine) + '">Kill</button>' : '') + '</td></tr>';
+    }).join('');
+    return '<div class="pool"><div class="ph2"><b>' + (p.length === 1 ? 'Pool ' + esc(p) : esc(p)) + '</b>' + alive + '/' + list.length + ' alive</div>' +
+      '<table><thead><tr><th>Machine</th><th>Worker</th><th>Status</th><th>Task</th><th>Done</th><th>Fixes</th><th>Flags</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }).join('') || '<div class="ph2">No machines yet.</div>';
+  if (h === lastTableHtml) return;
+  lastTableHtml = h; var y = $('tview').scrollTop; $('tview').innerHTML = h; $('tview').scrollTop = y;
+}
+document.addEventListener('click', function(e){
+  var b = e.target && e.target.closest && e.target.closest('[data-kill]');
+  if (!b) return;
+  b.disabled = true; b.textContent = 'Killing…';
+  fetch('/api/kill', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({machine: b.getAttribute('data-kill'), fraction: 1})});
+});
+
 function apply(S){
   S = S || {};
   lastState = S;
@@ -925,6 +1015,7 @@ function apply(S){
   });
   Object.keys(machines).forEach(function(m){ if (!mset[m] && machines[m].present){ machines[m].present = false; changed = true; } });
   if (changed) layoutMachines();
+  setTimeout(renderTable, 0);
 
   // workers
   lastWorkerData = {};
@@ -1238,6 +1329,10 @@ function frame(){
 frame();
 window.__teleport3d = { effects: effects, replay: function(){ $('replay').click(); } };
 })();
+
+$('v3d').onclick = function(){ setView(false); };
+$('vtab').onclick = function(){ setView(true); };
+try { if (sessionStorage.getItem('tp_3d_view') === 'table') setView(true); } catch (_) {}
 </script>
 </body>
 </html>

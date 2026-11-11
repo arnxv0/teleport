@@ -99,19 +99,32 @@ class ArchilBackend:
             sb.stop()
             sb.delete()
 
-    def launch(self, n, machine="A"):
-        """machine is the pool name; each sandbox is its own machine, labelled archil:<pool>:<id>."""
+    def launch(self, n, machine="A", parallel=10):
+        """machine is the pool name; each sandbox is its own machine, labelled archil:<pool>:<id>.
+        Sandboxes are created `parallel` at a time, so a 50-agent swarm comes up in seconds."""
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
         self.s = load_state(self.state_path)
         sbs = self.s.setdefault("sandboxes", {})
-        out = []
-        for _ in range(n):
-            wid = f"{machine}{sum(1 for m in sbs.values() if m['pool'] == machine) + 1:02d}"
-            sb = self._sandbox(f"tp-{wid.lower()}-{int(time.time()) % 10000}")
-            self._detach(sb, "teleport.worker", f"--id {wid}", f"archil:{machine}:{sb.id[-6:]}", wid)
-            sbs[wid] = {"id": sb.id, "pool": machine, "worker": wid}
-            save_state(self.s, self.state_path)
-            out.append({"worker": wid, "sandbox": sb.id, "machine": machine})
+        start = sum(1 for m in sbs.values() if m["pool"] == machine)
+        wids = [f"{machine}{start + i + 1:02d}" for i in range(n)]
+        lock = threading.Lock()
+
+        def one(wid):
+            try:
+                sb = self._sandbox(f"tp-{wid.lower()}-{int(time.time()) % 10000}")
+                self._detach(sb, "teleport.worker", f"--id {wid}", f"archil:{machine}:{sb.id[-6:]}", wid)
+            except Exception as e:
+                print("launch failed", wid, e, flush=True)
+                return None
+            with lock:
+                sbs[wid] = {"id": sb.id, "pool": machine, "worker": wid}
+                save_state(self.s, self.state_path)
             print("launched", wid, sb.id, flush=True)
+            return {"worker": wid, "sandbox": sb.id, "machine": machine}
+
+        with ThreadPoolExecutor(max(1, min(parallel, n))) as pool:
+            out = [r for r in pool.map(one, wids) if r]
         return out
 
     def reaper(self):
@@ -156,6 +169,7 @@ class ArchilBackend:
         save_state(self.s, self.state_path)
 
     def teardown(self):
+        self.s = load_state(self.state_path)  # sandboxes may have been replaced by another process
         for wid, meta in list(self.s.get("sandboxes", {}).items()):
             try:
                 sb = self.archil.get_sandbox(meta["id"])

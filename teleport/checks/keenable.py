@@ -26,8 +26,7 @@ def search(record, _steps):
     """One targeted Keenable search per field being verified, in parallel; evidence is tagged with
     the field(s) it was searched for and merged (deduplicated by URL)."""
     queries = planlib.search_queries(planlib.load(), record)
-    with ThreadPoolExecutor(len(queries)) as pool:
-        answers = list(pool.map(_one, list(queries)))
+    answers = [_one(q) for q in queries]  # sequential: a 50-agent swarm must stay under Keenable's rate limit
     merged = {}
     for (q, fields), results in zip(queries.items(), answers):
         for r in results:

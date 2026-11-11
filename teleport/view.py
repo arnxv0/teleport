@@ -196,3 +196,53 @@ class View:
                             "machines_lost": len(machines_lost)},
                 "items": items[:100]}
 
+    # ----- before / after rows -----
+    def rows(self, changed_only=False, limit=300, q=""):
+        """Original rows next to their cleaned values. A cell is 'accepted' (applied), 'verified'
+        (proposed, waiting for review) or 'flagged' (rejected by the evidence gate)."""
+        from . import plan as planlib
+        plan = self._json("plan.json", True) or planlib.OPENALEX
+        raw = self.cache.get("_raw")
+        if raw is None:
+            data = self.r.get("raw/institutions.jsonl") or b""
+            raw = [json.loads(line) for line in data.decode(errors="replace").splitlines() if line.strip()]
+            if raw:
+                self.cache["_raw"] = raw
+        cols = []
+        for c in [plan["name_field"], *[c["field"] for c in plan["checks"]], *(plan.get("context_fields") or [])]:
+            if c not in cols:
+                cols.append(c)
+        accepted = {a["fix_id"] for a in self._many([k for k in self.r.list("accepted/") if k.endswith(".json")], True)}
+        changes = {}
+        for kind in ("fixes", "flags"):
+            for f in self._many([k for k in self.r.list(f"{kind}/") if k.endswith(".json")], True):
+                st = "flagged" if kind == "flags" else ("accepted" if f["fix_id"] in accepted else "verified")
+                changes.setdefault(f["tid"], []).append({
+                    "field": f["field"], "old": f.get("old"), "new": f.get("new"), "status": st,
+                    "fix_id": f["fix_id"], "evidence_urls": f.get("evidence_urls") or [],
+                    "reason": f.get("reason"), "gate": f.get("gate")})
+        out, ql = [], q.lower().strip()
+        for i, rec in enumerate(raw):
+            tid = f"t{i:05d}"
+            ch = changes.get(tid, [])
+            if changed_only and not ch:
+                continue
+            before = {c: planlib.get(rec, c) for c in cols}
+            if ql and ql not in json.dumps(before, default=str).lower():
+                continue
+            after = dict(before)
+            for c in ch:
+                if c["status"] == "accepted":
+                    after[c["field"]] = c["new"]
+            out.append({"tid": tid, "row": i, "before": before, "after": after, "changes": ch})
+            if len(out) >= limit:
+                break
+        kinds = {c["field"]: c["kind"] for c in plan["checks"]}
+        return {"columns": [{"field": c, "kind": kinds.get(c), "checked": c in kinds,
+                             "is_name": c == plan["name_field"]} for c in cols],
+                "entity": plan["entity"], "total_rows": len(raw),
+                "rows_changed": sum(1 for v in changes.values() if v),
+                "counts": {s_: sum(1 for v in changes.values() for c in v if c["status"] == s_)
+                           for s_ in ("accepted", "verified", "flagged")},
+                "rows": out}
+
