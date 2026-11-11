@@ -8,3 +8,5 @@ Session.vim
 .teleport*.json
 runs/
 .teleport-current-*.json
+video/node_modules/
+video/.remotion/

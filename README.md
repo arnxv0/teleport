@@ -2,6 +2,12 @@
 
 **Agents that survive their machines dying.**
 
+[![Watch the Teleport demo video](video/thumbnail.jpg)](video/out/teleport-demo.mp4)
+
+**Demo video (3.5 min):** [video/out/teleport-demo.mp4](video/out/teleport-demo.mp4). The UI footage is
+recorded from a live run on Archil. The voiceover was generated with OpenAI's `gpt-4o-mini-tts` from our
+script, and the video was made with [Remotion](https://www.remotion.dev) (source in [`video/`](video/)).
+
 AI agents increasingly run long jobs on **ephemeral sandboxes**: VMs that time out (ours live 30
 minutes), pause when idle, crash, or get reclaimed. When one dies, everything the agent was doing dies
 with it: half-finished work is lost, paid LLM and API calls are wasted, and a naive retry can write the
@@ -169,3 +175,11 @@ Keenable, judge, gate · `worker.py` · `reaper.py` · `ingest.py` · `backends/
 | Best Use of Archil | The disk is the swarm's only state (queue, locks, logs, results); sandboxes and the SDK for the whole lifecycle; server-side ingest; checkpoints and branches; the S3 API for the dashboard; a measured smoke test of Archil's semantics. |
 | Technical Execution | O_EXCL claims with generations, leases, write-once commits, per-step checkpoints: **0 lost, 0 duplicated** across 15 machines killed or replaced mid-task. |
 | Keenable | One targeted search per field, plus fetch; every verified fix cites Keenable URLs, enforced in code. |
+
+## Rebuilding the video
+
+```bash
+cd video && npm install
+python3 script/tts.py                 # voiceover per scene -> public/audio, public/scenes.json (needs OPENAI_API_KEY)
+node scripts/assets.mjs && npx remotion render src/index.ts Teleport out/teleport-demo.mp4 --codec h264 --crf 20
+```

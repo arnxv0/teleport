@@ -1,0 +1,74 @@
+[
+ {
+  "id": "s01",
+  "audio": "audio/s01.mp3",
+  "seconds": 8.45,
+  "text": "Hi! We are students, and this is Teleport. It keeps AI agents working, even when the computer they run on shuts down."
+ },
+ {
+  "id": "s02",
+  "audio": "audio/s02.mp3",
+  "seconds": 14.45,
+  "text": "AI agents now do long jobs. They read websites, check facts, and fix data for hours. They run on small cloud computers called sandboxes. A sandbox can stop at any moment. Ours shut down after thirty minutes."
+ },
+ {
+  "id": "s03",
+  "audio": "audio/s03.mp3",
+  "seconds": 11.16,
+  "text": "When a sandbox stops, the agent forgets everything. The work it did is gone. The money we spent on AI calls is wasted. And if we simply start over, the same result can get saved twice."
+ },
+ {
+  "id": "s04",
+  "audio": "audio/s04.mp3",
+  "seconds": 12.22,
+  "text": "So we asked a simple question. What if the agent kept its memory somewhere safe, outside the computer? Then another computer could pick up right where it stopped. We call this teleporting."
+ },
+ {
+  "id": "s05",
+  "audio": "audio/s05.mp3",
+  "seconds": 26.52,
+  "text": "Archil makes teleporting possible. Archil gives us one shared disk that every sandbox can open at the same time. Each agent saves its progress to that disk after every step. When a sandbox dies, its hold on the task runs out. Another sandbox notices, reads the saved progress, and keeps going. Archil also runs the sandboxes, and saves a copy of the data before we change anything."
+ },
+ {
+  "id": "s06",
+  "audio": "audio/s06.mp3",
+  "seconds": 15.05,
+  "text": "Keenable is how our agents check facts. For every row, an agent searches the web with Keenable and reads the real page. A fix only counts if it points to a page Keenable really found. If there is no proof, a person reviews it instead."
+ },
+ {
+  "id": "s07",
+  "audio": "audio/s07.mp3",
+  "seconds": 14.66,
+  "text": "To show teleporting in action, we built a data cleaning tool. You paste a link to any public dataset. A planning agent decides what to check. Then Teleport starts a team of agents, each one in its own sandbox."
+ },
+ {
+  "id": "s08",
+  "audio": "audio/s08.mp3",
+  "seconds": 10.37,
+  "text": "Now we turn off a sandbox in the middle of its work. Its task jumps to another sandbox. The new sandbox skips the steps that were already done, and finishes the job."
+ },
+ {
+  "id": "s08b",
+  "audio": "audio/s08b.mp3",
+  "seconds": 30.12,
+  "text": "A computer shutting down is just one way an agent can break. Here is a real one from tonight. Fifty agents were asking the same search service for help at the same time. The service told them to slow down. A few agents waited and tried again, eight times, and still got turned away. So they let go of their task. Twenty seconds later, TELEPORT noticed the task was free and gave it to another agent. That agent picked up the saved progress and finished the job. Nothing was lost."
+ },
+ {
+  "id": "s09",
+  "audio": "audio/s09.mp3",
+  "seconds": 16.37,
+  "text": "In one test, fifty agents checked every company in the S and P 500. Halfway through, we replaced every single sandbox. All five hundred and three companies still got checked. We lost zero work, and nothing got saved twice."
+ },
+ {
+  "id": "s09b",
+  "audio": "audio/s09b.mp3",
+  "seconds": 28.61,
+  "text": "TELEPORT works for more than data. Think about a smart chatbot that answers thousands of people. When too many requests pile up, or its computer crashes, the bot breaks down. With TELEPORT, the bot keeps its memory and its list of waiting requests on the shared disk. So it simply TELEPORTs to a fresh sandbox and keeps answering, right where it left off. The same idea works for research agents, coding agents, and any agent that runs for a long time."
+ },
+ {
+  "id": "s10",
+  "audio": "audio/s10.mp3",
+  "seconds": 13.8,
+  "text": "Thank you to Archil for the shared disks and sandboxes, to Keenable for web search with sources, and to Casco for hosting us tonight. This is Teleport. Agents that keep going, even when their computer stops."
+ }
+]

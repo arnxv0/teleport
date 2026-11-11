@@ -1,0 +1,26 @@
+{
+ "clips": {
+  "data": 22.9,
+  "kill_teleport": 32,
+  "overview_live": 20,
+  "overview_paste": 14.2,
+  "review": 18.966667,
+  "swarm3d": 22.7,
+  "teleports": 23.7
+ },
+ "files": {
+  "data": "clips/data.mp4",
+  "kill_teleport": "clips/kill_teleport.mp4",
+  "overview_live": "clips/overview_live.mp4",
+  "overview_paste": "clips/overview_paste.mp4",
+  "review": "clips/review.mp4",
+  "swarm3d": "clips/swarm3d.mp4",
+  "teleports": "clips/teleports.mp4"
+ },
+ "shots": {
+  "data": "shots/data.png",
+  "overview": "shots/overview.png",
+  "swarm3d": "shots/swarm3d.png",
+  "teleports": "shots/teleports.png"
+ }
+}
