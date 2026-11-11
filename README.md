@@ -7,7 +7,7 @@ minutes), pause when idle, crash, or get reclaimed. When one dies, everything th
 with it: half-finished work is lost, paid LLM and API calls are wasted, and a naive retry can write the
 same result twice.
 
-**Teleport makes an agent's work outlive its machine.** Every agent keeps its state on one shared
+**With Teleport, agents TELEPORT to a different machine when the current one goes down.** Every agent keeps its state on one shared
 **Archil disk**, not in its VM:
 - **Atomic claims:** a rename plus an exclusive `O_EXCL` marker, so exactly one agent owns a task.
 - **Leases** renewed every 5 seconds, so a dead agent is detected within 20 seconds.
@@ -165,7 +165,7 @@ Keenable, judge, gate · `worker.py` · `reaper.py` · `ingest.py` · `backends/
 
 | Track | Why Teleport fits |
 |---|---|
-| Most Creative | Paste any dataset: a planner agent designs the checks, and a swarm cleans it and outlives its machines. Git for public data. |
+| Most Creative | Paste any dataset: a planner agent designs the checks, and a swarm cleans it, and its agents TELEPORT to new machines when theirs go down. Git for public data. |
 | Best Use of Archil | The disk is the swarm's only state (queue, locks, logs, results); sandboxes and the SDK for the whole lifecycle; server-side ingest; checkpoints and branches; the S3 API for the dashboard; a measured smoke test of Archil's semantics. |
 | Technical Execution | O_EXCL claims with generations, leases, write-once commits, per-step checkpoints: **0 lost, 0 duplicated** across 15 machines killed or replaced mid-task. |
 | Keenable | One targeted search per field, plus fetch; every verified fix cites Keenable URLs, enforced in code. |
