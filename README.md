@@ -30,6 +30,20 @@ human and applied to an Archil **branch**; the original stays untouched.
 Then we kill machines mid-run, replace the entire swarm, and let sandboxes die of old age, and watch
 every task finish anyway.
 
+## Where else TELEPORT helps
+
+TELEPORT is for any agent that runs for a long time or serves many requests.
+
+- **A smart chatbot or assistant.** It answers thousands of people. When too many requests pile up, or its
+  sandbox crashes or runs out of memory, the bot breaks down. With TELEPORT, the bot keeps its memory and its
+  list of waiting requests on the shared disk, so it TELEPORTs to a fresh sandbox and keeps answering where
+  it left off. Nobody's request is lost or answered twice.
+- **Research agents** that read hundreds of pages over hours.
+- **Coding agents** that work across many repositories.
+- **Batch jobs** like evaluations, scraping, or document processing.
+
+Data cleaning is the first application we built to prove TELEPORT works under real load.
+
 ## Results (measured tonight, on Archil)
 
 | Run | Records | Agents | Verified fixes | Flagged | Machines killed | Teleports | Duplicates | Work lost |
