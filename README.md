@@ -1,16 +1,34 @@
 # Teleport
 
-**An automated data-cleaning platform run by a swarm of agents that outlives its machines.**
+**Agents that survive their machines dying.**
 
-Paste the URL of any public dataset (CSV, JSON or JSONL, over https or `s3://`). A **planner agent**
-reads sample rows and decides what can be verified against the live web. A **swarm of agents** in
-Archil sandboxes then checks every record with **Keenable** search and fetch, and an LLM judge proposes fixes.
-A deterministic **evidence gate** decides which fixes count. Verified fixes wait for a human to accept
-them onto an Archil **branch**; the original data is never modified.
+AI agents increasingly run long jobs on **ephemeral sandboxes**: VMs that time out (ours live 30
+minutes), pause when idle, crash, or get reclaimed. When one dies, everything the agent was doing dies
+with it: half-finished work is lost, paid LLM and API calls are wasted, and a naive retry can write the
+same result twice.
 
-Sandboxes are ephemeral by design (ours live 30 minutes at most), and agent jobs run longer than that.
-When a machine dies mid-task, its work **teleports**: another machine resumes it from the last
-checkpoint, and nothing is lost or done twice.
+**Teleport makes an agent's work outlive its machine.** Every agent keeps its state on one shared
+**Archil disk**, not in its VM:
+- **Atomic claims:** a rename plus an exclusive `O_EXCL` marker, so exactly one agent owns a task.
+- **Leases** renewed every 5 seconds, so a dead agent is detected within 20 seconds.
+- **Per-step checkpoints**, fsync'd to the disk after every step.
+- **Write-once results**, so a retried agent can never duplicate a commit.
+
+When a sandbox dies mid-task, its lease expires and **another sandbox, on a different machine, resumes
+the task from its last checkpoint**. The work *teleports*: nothing is lost and nothing is done twice. No
+queue, database or coordinator is needed; the disk is the swarm's only state, so any machine that
+mounts it can join or take over.
+
+### Demonstrated by: an automated data-cleaning swarm
+
+To prove it under real load, we built a platform on top of it. Paste the URL of any public dataset (CSV,
+JSON or JSONL). A **planner agent** decides what can be verified on the live web, and Teleport spawns a
+swarm of agents in Archil sandboxes. Each agent checks records with **Keenable** search and fetch, an LLM
+judge proposes fixes, and a deterministic **evidence gate** decides what counts. Fixes are reviewed by a
+human and applied to an Archil **branch**; the original stays untouched.
+
+Then we kill machines mid-run, replace the entire swarm, and let sandboxes die of old age, and watch
+every task finish anyway.
 
 ## Results (measured tonight, on Archil)
 
@@ -18,6 +36,11 @@ checkpoint, and nothing is lost or done twice.
 |---|---|---|---|---|---|---|---|---|
 | OpenAlex institutions, Nigeria (+2 poison records) | 502 | 10 sandboxes, then the whole swarm replaced mid-run | 58 | 39 | 3 hard-killed + 10 replaced | 10 | 0 | **0** |
 | World Universities CSV, pasted on the homepage | 60 | 8 sandboxes | 8 | 7 | 2 | 2 | 0 | **0** |
+| S&P 500 companies, 50-agent stress test (Keenable rate-limit storm + whole swarm replaced) | 503 | 50 sandboxes in 5 pools | 181 | 36 | 50 replaced mid-run | 466* | 0 written twice (178 duplicate claims blocked) | **0** |
+
+\* Inflated by the rate-limit storm: 310 failed API calls made agents abandon tasks, which were requeued and
+resumed elsewhere. It's the harness working under stress, not machines dying. A real error it found:
+Ares Management founded **1977 → 1997**.
 
 - **Example fixes:** Zankli Medical Centre `zankli.com` → `zanklimedical.com`; American College of Dubai
   `acd.ac.ae` → `acd.ae`; Al Khawarizmi International College `khawarizmi.com` → `kic.ac.ae`.
