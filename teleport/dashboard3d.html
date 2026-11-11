@@ -199,6 +199,18 @@ body.has-sel #sel{max-height:calc(100vh - 180px)}
   #sel,#feed,#toast{top:220px}#sel{max-height:calc(100vh - 220px - 262px)}#feed{max-height:calc(100vh - 288px)}#legend,#help{display:none}}
 @media(max-width:899px){#feed,#log{display:none}.nav{display:none}}
 @media(max-height:760px){#log{display:none}#sel{max-height:calc(100vh - 180px)}}
+
+/* number inputs: no browser spinners, centred tabular digits */
+input[type=number]{-moz-appearance:textfield;appearance:textfield;font-variant-numeric:tabular-nums}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+/* one labeled launch control: POOL [B] × [3] */
+.ig{display:inline-flex;align-items:center;height:32px;border:1px solid var(--border-strong);border-radius:8px;background:var(--bg);overflow:hidden;flex:none}
+.ig>span{padding:0 9px;font:500 10px/1 Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);align-self:stretch;display:flex;align-items:center;border-right:1px solid var(--border)}
+.ig>i{font-style:normal;color:var(--faint);padding:0 6px;font-size:12px}
+.ig input{border:0!important;background:transparent!important;height:30px!important;border-radius:0!important;padding:0 8px!important;outline:none;color:var(--text)}
+.ig input:focus{background:var(--surface-2)!important}
+.ig .pool{width:64px}.ig .cnt{width:40px;text-align:center}
+.ig:focus-within{border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -250,8 +262,8 @@ body.has-sel #sel{max-height:calc(100vh - 180px)}
   <div id="selBody"></div>
   <div class="launch">
     <div class="sub-h">Add machine</div>
-    <div class="row"><input type="text" id="newMachine" placeholder="pool or machine name" spellcheck="false" autocomplete="off">
-      <button class="btn" id="launchBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Launch 3</button></div>
+    <div class="row"><label class="ig" title="Launch new sandboxes into a pool (1–20)"><span>Pool</span><input type="text" id="newMachine" class="pool" placeholder="B" spellcheck="false" autocomplete="off"><i>×</i><input type="number" id="launchN" class="cnt" min="1" max="20" value="3"></label>
+      <button class="btn" id="launchBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span id="launchLbl">Launch 3</span></button></div>
   </div>
 </aside>
 
@@ -849,7 +861,7 @@ function renderSel(){
       '<div><div class="l">Alive</div><div class="v">' + alive + '<span class="c-muted">/' + ws.length + '</span></div></div>' +
       '<div><div class="l">Done</div><div class="v">' + M.done + '</div></div></div>' +
     '<div class="btns"><button class="btn danger" id="killBtn"' + (alive ? '' : ' disabled') + '>' + I.kill + 'Kill 50%</button>' +
-    '<button class="btn" id="launchHere">' + I.plus + 'Launch 3 here</button></div>';
+    '<button class="btn" id="launchHere">' + I.plus + 'Launch ' + launchCount() + ' here</button></div>';
   if (ws.length) h += '<div class="sub-h">Workers</div>';
   ws.sort(function(a, b){ return (b.alive - a.alive) || String(a.worker).localeCompare(String(b.worker)); });
   ws.forEach(function(w){
@@ -879,14 +891,17 @@ function doKill(name){
     toast(tTag(I.kill, 'Killed') + ' ' + (n == null ? '' : n + ' ') + 'worker' + (n === 1 ? '' : 's') + ' on <span class="mono">' + esc(name) + '</span> <span class="c-muted">· leases will expire, then tasks teleport</span>', 'bad', 4200);
   }).catch(function(e){ toast(tTag(I.alert, 'Kill failed') + ' ' + esc(e.message), 'bad'); });
 }
+function launchCount(){ return Math.max(1, Math.min(20, +$('launchN').value || 3)); }
 function doLaunch(name){
   name = (name || '').trim(); if (!name) { $('newMachine').focus(); return; }
-  toast(tTag(I.plus, 'Launch') + ' Launching 3 workers on <span class="mono">' + esc(name) + '</span>', 'info', 2200);
-  post('/api/launch', { machine: name, n: 3 }).then(function(){
-    toast(tTag(I.check, 'Launched') + ' 3 workers on <span class="mono">' + esc(name) + '</span>', 'info');
+  var n = launchCount();
+  toast(tTag(I.plus, 'Launch') + ' Launching ' + n + ' workers on <span class="mono">' + esc(name) + '</span>', 'info', 2200);
+  post('/api/launch', { machine: name, n: n }).then(function(){
+    toast(tTag(I.check, 'Launched') + ' ' + n + ' workers on <span class="mono">' + esc(name) + '</span>', 'info');
   }).catch(function(e){ toast(tTag(I.alert, 'Launch failed') + ' ' + esc(e.message), 'bad'); });
 }
 $('launchBtn').onclick = function(){ doLaunch($('newMachine').value); };
+$('launchN').addEventListener('input', function(){ $('launchLbl').textContent = 'Launch ' + launchCount(); lastSelHtml = ''; });
 $('newMachine').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLaunch($('newMachine').value); });
 $('replay').onclick = function(){ if (lastTeleports.length) pendingTeleports.push(lastTeleports[lastTeleports.length - 1]); };
 
@@ -999,6 +1014,8 @@ document.addEventListener('click', function(e){
   fetch('/api/kill', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({machine: b.getAttribute('data-kill'), fraction: 1})});
 });
 
+function fmtDur(sec){ sec = Math.max(0, Math.round(sec || 0)); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60;
+  return h ? h + 'h ' + m + 'm' : m ? m + 'm ' + (x < 10 ? '0' : '') + x + 's' : x + 's'; }
 function apply(S){
   S = S || {};
   lastState = S;
@@ -1086,7 +1103,11 @@ function apply(S){
   var total = num(S.total), done = num(S.done);
   var pct = total ? Math.min(100, done / total * 100) : 0;
   $('kDone').textContent = done; $('kTotal').textContent = total;
-  $('kBar').style.width = pct + '%'; $('kPct').textContent = Math.round(pct) + '%';
+  $('kBar').style.width = pct + '%';
+  var e = S.eta || {}, etaTxt = '';
+  if (total && e.remaining === 0) etaTxt = ' · done in ' + fmtDur(e.elapsed_s);
+  else if (total && e.eta_s != null) etaTxt = ' · ~' + fmtDur(e.eta_s) + ' left · ' + (e.rate_per_min || 0) + '/min';
+  $('kPct').textContent = Math.round(pct) + '%' + etaTxt;
   $('kFix').textContent = num(S.fixes); $('kFlag').textContent = num(S.flags);
   $('kTp').textContent = num(S.teleported); $('kRe').textContent = num(S.reassigned);
   $('kDup').textContent = num(S.duplicates_prevented);

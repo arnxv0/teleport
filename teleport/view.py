@@ -121,8 +121,27 @@ class View:
         machines = sorted({w["machine"] for w in workers})
         teleports = [e for e in events if e["type"] == "resume"]
 
+        # Progress / ETA from the swarm's own completion events: rolling 90s throughput,
+        # falling back to the whole-run average early on.
+        dones = [e["ts"] for e in events if e["type"] == "done"]
+        total_n, done_n = len(man.get("tids", [])), len(done)
+        started = min((e["ts"] for e in events if e["type"] in ("claim", "start")), default=None)
+        recent = [x for x in dones if x > t - 90]
+        if len(recent) >= 3:
+            rate = len(recent) / (min(90.0, t - (started or t)) or 90.0) * 60
+        elif dones and started:
+            rate = len(dones) / max(1.0, (max(dones) - started)) * 60
+        else:
+            rate = 0.0
+        remaining = max(0, total_n - done_n)
+        finished_at = max(dones) if remaining == 0 and dones else None
+        eta = {"rate_per_min": round(rate, 1), "remaining": remaining,
+               "elapsed_s": round(((finished_at or t) - started)) if started else 0,
+               "eta_s": round(remaining / rate * 60) if rate > 0 and remaining else (0 if not remaining else None),
+               "per_agent_per_min": round(rate / max(1, sum(1 for w in workers if w.get("alive"))), 2)}
+
         return {
-            "now": t, "country": man.get("country"), "source": man.get("source"),
+            "now": t, "country": man.get("country"), "source": man.get("source"), "eta": eta,
             "plan": self._json("plan.json", True), "total": len(man.get("tids", [])),
             "todo": len(todo), "claimed": len(claimed), "done": len(done),
             "verdicts": len(verdicts), "fixes": len(fixes), "flags": len(flags), "accepted": len(accepted),
